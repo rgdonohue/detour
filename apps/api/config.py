@@ -23,6 +23,14 @@ class Settings(BaseSettings):
     HOTEL_LAT: float = 35.6824
     DEFAULT_RANGE_MILES: float = 3
     CACHE_TTL_HOURS: int = 24
+    CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        """Parse CORS_ORIGINS into a list, stripping whitespace."""
+        if not self.CORS_ORIGINS.strip():
+            return []
+        return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
 
 
 settings = Settings()

@@ -1,5 +1,4 @@
 import { Map } from "./components/Map";
-import { Legend } from "./components/Legend";
 
 function App() {
   return (
@@ -10,7 +9,6 @@ function App() {
       </header>
       <div className="app-map-wrapper">
         <Map />
-        <Legend />
       </div>
     </div>
   );

@@ -1,0 +1,38 @@
+# 3-Mile Drive Map — Render Blueprint
+# https://docs.render.com/blueprint-spec
+#
+# After connecting this repo: New > Blueprint > Connect repo >
+# Apply. Add ORS_API_KEY as a secret for the API service.
+
+services:
+  - type: web
+    name: 3-mile-drive-api
+    runtime: python
+    plan: free
+
+    rootDir: apps/api
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+
+    healthCheckPath: /
+    envVars:
+      - key: ORS_API_KEY
+        sync: false  # Set in Render dashboard (Secret)
+      - key: CORS_ORIGINS
+        fromService:
+          type: web
+          name: 3-mile-drive
+          envVarKey: RENDER_EXTERNAL_URL  # Frontend URL for CORS
+
+  - type: web
+    name: 3-mile-drive
+    runtime: static
+    plan: free
+
+    rootDir: apps/web
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist  # Relative to rootDir (apps/web)
+
+    envVars:
+      - key: VITE_API_BASE
+        value: https://3-mile-drive-api.onrender.com/api

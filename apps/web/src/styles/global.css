@@ -65,74 +65,6 @@ h1, h2, h3 {
   color: var(--route-outside);
 }
 
-.legend {
-  position: absolute;
-  bottom: 1rem;
-  left: 1rem;
-  background: var(--warm-cream);
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(44, 24, 16, 0.08);
-  font-size: 0.875rem;
-  color: var(--dark-brown);
-  z-index: 10;
-}
-
-.legend__toggle {
-  display: none;
-  position: absolute;
-  bottom: 1rem;
-  left: 1rem;
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  min-height: 44px;
-  padding: 0;
-  font-size: 1.25rem;
-  border: none;
-  border-radius: 50%;
-  background: var(--warm-cream);
-  box-shadow: 0 2px 12px rgba(44, 24, 16, 0.08);
-  cursor: pointer;
-}
-
-.legend-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
-}
-
-.legend-row:last-of-type {
-  margin-bottom: 0;
-}
-
-.legend-swatch {
-  flex-shrink: 0;
-  width: 14px;
-  height: 14px;
-}
-
-.legend-marker {
-  border-radius: 50%;
-  background: var(--terracotta);
-  border: 2px solid white;
-}
-
-.legend-polygon {
-  border-radius: 2px;
-  background: var(--terracotta-light);
-  border: 1px dashed var(--terracotta);
-}
-
-.legend-footnote {
-  margin: 0.5rem 0 0;
-  padding-top: 0.5rem;
-  border-top: 1px solid rgba(44, 24, 16, 0.1);
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-}
-
 .origin-popup {
   font-family: "DM Sans", system-ui, sans-serif;
   font-size: 0.875rem;
@@ -283,38 +215,5 @@ h1, h2, h3 {
     overflow-y: auto;
     border-radius: 12px 12px 0 0;
     box-shadow: 0 -4px 20px rgba(44, 24, 16, 0.12);
-  }
-  .legend--collapsed {
-    padding: 0;
-    min-width: 44px;
-    min-height: 44px;
-  }
-  .legend--collapsed .legend__toggle {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .legend--collapsed .legend-row,
-  .legend--collapsed .legend-footnote {
-    display: none;
-  }
-  .legend--expanded .legend__toggle {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: absolute;
-    top: 0.5rem;
-    right: 0.5rem;
-    left: auto;
-    bottom: auto;
-  }
-  .legend--expanded {
-    padding-right: 2.5rem;
-  }
-}
-
-@media (min-width: 769px) {
-  .legend__toggle {
-    display: none;
   }
 }
