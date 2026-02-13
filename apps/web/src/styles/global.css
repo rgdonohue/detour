@@ -1,0 +1,320 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&display=swap");
+
+:root {
+  --terracotta: #c45b28;
+  --terracotta-light: rgba(196, 91, 40, 0.15);
+  --terracotta-wash: rgba(196, 91, 40, 0.08);
+  --dark-brown: #2c1810;
+  --warm-cream: #faf7f2;
+  --sage: #6b7f5e;
+  --route-within: #2d7d46;
+  --route-outside: #b8432f;
+  --text-secondary: #7a6f66;
+
+  font-family: "DM Sans", system-ui, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--dark-brown);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--warm-cream);
+}
+
+.app {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+}
+
+.app-map-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+h1, h2, h3 {
+  font-family: "Playfair Display", Georgia, serif;
+}
+
+.map-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.map-loading,
+.map-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  padding: 1rem;
+  color: var(--text-secondary);
+}
+
+.map-error {
+  color: var(--route-outside);
+}
+
+.legend {
+  position: absolute;
+  bottom: 1rem;
+  left: 1rem;
+  background: var(--warm-cream);
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(44, 24, 16, 0.08);
+  font-size: 0.875rem;
+  color: var(--dark-brown);
+  z-index: 10;
+}
+
+.legend__toggle {
+  display: none;
+  position: absolute;
+  bottom: 1rem;
+  left: 1rem;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  font-size: 1.25rem;
+  border: none;
+  border-radius: 50%;
+  background: var(--warm-cream);
+  box-shadow: 0 2px 12px rgba(44, 24, 16, 0.08);
+  cursor: pointer;
+}
+
+.legend-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.legend-row:last-of-type {
+  margin-bottom: 0;
+}
+
+.legend-swatch {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+}
+
+.legend-marker {
+  border-radius: 50%;
+  background: var(--terracotta);
+  border: 2px solid white;
+}
+
+.legend-polygon {
+  border-radius: 2px;
+  background: var(--terracotta-light);
+  border: 1px dashed var(--terracotta);
+}
+
+.legend-footnote {
+  margin: 0.5rem 0 0;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(44, 24, 16, 0.1);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.origin-popup {
+  font-family: "DM Sans", system-ui, sans-serif;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.app-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 0.75rem 1rem;
+  background: rgba(250, 247, 242, 0.95);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(44, 24, 16, 0.06);
+  z-index: 10;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 500;
+  color: var(--dark-brown);
+}
+
+.app-header p {
+  margin: 0.25rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+/* Map wrapper for loading state */
+.map-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+.map-wrapper--loading .map-container {
+  pointer-events: none;
+}
+
+/* Verdict panel: bottom-right desktop, bottom sheet mobile */
+.verdict-panel {
+  position: absolute;
+  bottom: 1rem;
+  right: 1rem;
+  background: var(--warm-cream);
+  padding: 1rem 1.25rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(44, 24, 16, 0.12);
+  font-size: 0.875rem;
+  color: var(--dark-brown);
+  z-index: 10;
+  max-width: 280px;
+  animation: verdict-slide-in 0.25s ease-out;
+}
+
+.verdict-panel--error {
+  border-left: 3px solid var(--route-outside);
+}
+
+.verdict-panel:not(.verdict-panel--error) {
+  border-left: 3px solid var(--verdict-accent, var(--terracotta));
+}
+
+.verdict-panel__title {
+  margin: 0 0 0.75rem;
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.verdict-panel__distance,
+.verdict-panel__verdict,
+.verdict-panel__message,
+.verdict-panel__loading {
+  margin: 0 0 0.5rem;
+  font-size: 0.875rem;
+}
+
+.verdict-panel__value {
+  font-weight: 500;
+}
+
+.verdict-panel__verdict {
+  font-weight: 500;
+  color: var(--verdict-accent, var(--dark-brown));
+}
+
+.verdict-panel__icon {
+  margin-right: 0.25rem;
+}
+
+.verdict-panel__note {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+.verdict-panel__reset {
+  margin-top: 1rem;
+  padding: 0.625rem 1.25rem;
+  min-height: 44px;
+  min-width: 44px;
+  font-size: 0.8125rem;
+  font-family: inherit;
+  color: var(--dark-brown);
+  background: transparent;
+  border: 1px solid rgba(44, 24, 16, 0.2);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.verdict-panel__reset:hover {
+  background: rgba(44, 24, 16, 0.06);
+}
+
+@keyframes verdict-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 768px) {
+  .app-header h1 {
+    font-size: 1rem;
+  }
+  .app-header p {
+    font-size: 0.75rem;
+  }
+  .verdict-panel {
+    left: 1rem;
+    right: 1rem;
+    bottom: 0;
+    max-width: none;
+    max-height: 40vh;
+    overflow-y: auto;
+    border-radius: 12px 12px 0 0;
+    box-shadow: 0 -4px 20px rgba(44, 24, 16, 0.12);
+  }
+  .legend--collapsed {
+    padding: 0;
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .legend--collapsed .legend__toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .legend--collapsed .legend-row,
+  .legend--collapsed .legend-footnote {
+    display: none;
+  }
+  .legend--expanded .legend__toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    left: auto;
+    bottom: auto;
+  }
+  .legend--expanded {
+    padding-right: 2.5rem;
+  }
+}
+
+@media (min-width: 769px) {
+  .legend__toggle {
+    display: none;
+  }
+}
