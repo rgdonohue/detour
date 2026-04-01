@@ -1,4 +1,4 @@
-import type { NearbyStop } from "../lib/nearbyStop";
+import type { StopSuggestion } from "../lib/api";
 import type { PlaceCategory } from "../data/places";
 import { StopCategorySelector } from "./StopCategorySelector";
 
@@ -18,7 +18,8 @@ interface VerdictPanelProps {
   isLoading?: boolean;
   error?: string | null;
   onReset: () => void;
-  nearbyStop?: NearbyStop | null;
+  nearbyStop?: StopSuggestion | null;
+  stopLoading?: boolean;
   onRouteViaStop?: (() => void) | null;
   detourLoading?: boolean;
   showingDetour?: boolean;
@@ -48,6 +49,7 @@ export function VerdictPanel({
   error = null,
   onReset,
   nearbyStop = null,
+  stopLoading = false,
   onRouteViaStop = null,
   detourLoading = false,
   showingDetour = false,
@@ -97,7 +99,7 @@ export function VerdictPanel({
 
   const title =
     showingDetour && nearbyStop
-      ? `Via ${nearbyStop.place.name}`
+      ? `Via ${nearbyStop.name}`
       : "Selected Destination";
 
   return (
@@ -163,17 +165,24 @@ export function VerdictPanel({
           {onCategoryChange && (
             <StopCategorySelector selected={stopCategory ?? null} onChange={onCategoryChange} />
           )}
-          {nearbyStop ? (
+          {stopLoading && !nearbyStop ? (
+            <p className="verdict-panel__loading">Finding a stop…</p>
+          ) : nearbyStop ? (
             <>
               <p className="verdict-panel__stop-name">
-                {nearbyStop.place.name}
+                {nearbyStop.name}
                 <span className="verdict-panel__stop-category">
-                  {CATEGORY_LABELS[nearbyStop.place.category]}
+                  {(CATEGORY_LABELS as Record<string, string>)[nearbyStop.category] ?? nearbyStop.category}
                 </span>
               </p>
-              <p className="verdict-panel__stop-desc">
-                {nearbyStop.place.description}
-              </p>
+              {nearbyStop.description && (
+                <p className="verdict-panel__stop-desc">
+                  {nearbyStop.description}
+                </p>
+              )}
+              {nearbyStop.source_category_note === "approximate" && (
+                <p className="verdict-panel__stop-note">Approximate category match</p>
+              )}
               <p
                 className="verdict-panel__stop-proximity"
                 style={
@@ -191,9 +200,9 @@ export function VerdictPanel({
                   ? `+${Math.max(0, detourPreview.extra_miles).toFixed(1)} mi via this stop · ${detourPreview.within_limit ? `still within ${limit_miles}-mi range` : `exceeds ${limit_miles}-mi range`}`
                   : detourLoading
                     ? "Checking detour…"
-                    : nearbyStop.distanceMiles < 0.1
+                    : nearbyStop.distance_miles < 0.1
                       ? "Right along your route"
-                      : `${nearbyStop.distanceMiles.toFixed(1)} mi from route`}
+                      : `${nearbyStop.distance_miles.toFixed(1)} mi from route`}
               </p>
               {onRouteViaStop && (
                 <button

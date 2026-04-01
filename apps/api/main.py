@@ -14,6 +14,8 @@ from cache import (
 from config import settings
 from conversion import miles_to_meters
 from ors_client import get_isodistance, get_shortest_route
+from poi_client import get_pois_along_route
+from stop_selector import ORS_ELIGIBLE_CATEGORIES, select_from_ors, select_from_static
 
 logger = logging.getLogger(__name__)
 
@@ -171,3 +173,65 @@ async def get_route(
         raise HTTPException(status_code=502, detail="Upstream routing error")
 
     return result
+
+
+@app.get("/api/suggest-stop")
+async def suggest_stop(
+    origin: str,
+    destination: str,
+    category: str | None = None,
+    miles: float | None = None,
+):
+    """Suggest the best nearby stop along the route from origin to destination."""
+    try:
+        origin_lon, origin_lat = _parse_to_param(origin)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid origin: {e}")
+
+    try:
+        dest_lon, dest_lat = _parse_to_param(destination)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid destination: {e}")
+
+    limit_miles = miles if miles is not None else settings.DEFAULT_RANGE_MILES
+
+    try:
+        route_data = await get_shortest_route(
+            origin_lon, origin_lat, dest_lon, dest_lat, limit_miles=limit_miles
+        )
+    except ValueError as e:
+        msg = str(e)
+        if "no route" in msg.lower():
+            raise HTTPException(status_code=404, detail=msg)
+        raise HTTPException(status_code=502, detail=msg)
+    except Exception:
+        logger.exception("ORS directions error in suggest-stop")
+        raise HTTPException(status_code=502, detail="Upstream routing error")
+
+    route_coords = route_data["route"]["geometry"]["coordinates"]
+
+    ors_attempted = settings.USE_ORS_POIS and category in ORS_ELIGIBLE_CATEGORIES
+    ors_candidates = 0
+    stop = None
+
+    if ors_attempted:
+        candidates = await get_pois_along_route(route_coords, category)
+        ors_candidates = len(candidates)
+        stop = select_from_ors(candidates, route_coords)
+
+    fallback = False
+    if stop is None:
+        if ors_attempted:
+            fallback = True
+        stop = select_from_static(route_coords, category)
+
+    source = stop["source"] if stop else "none"
+    logger.info(
+        "suggest-stop category=%s ors_attempted=%s ors_candidates=%d source=%s",
+        category,
+        ors_attempted,
+        ors_candidates,
+        source,
+    )
+
+    return {"stop": stop, "fallback": fallback}

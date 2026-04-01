@@ -47,6 +47,21 @@ export interface RouteResponse {
   limit_miles: number;
 }
 
+export interface StopSuggestion {
+  name: string;
+  category: string;
+  coordinates: [number, number];
+  description: string | null;
+  distance_miles: number;
+  source: "ors" | "static";
+  source_category_note: "approximate" | null;
+}
+
+export interface SuggestStopResponse {
+  stop: StopSuggestion | null;
+  fallback: boolean;
+}
+
 const FETCH_TIMEOUT_MS = 5000;
 const ROUTE_TIMEOUT_MS = 15000; // ORS can be slow; fail after 15s
 
@@ -91,6 +106,31 @@ export async function getArea(
   }
   const res = await fetch(`${API_BASE}/area?${params}`);
   if (!res.ok) throw new Error(`Area failed: ${res.status}`);
+  return res.json();
+}
+
+export async function suggestStop(
+  originLon: number,
+  originLat: number,
+  destLon: number,
+  destLat: number,
+  category: string | null,
+  miles?: number,
+): Promise<SuggestStopResponse> {
+  const params = new URLSearchParams({
+    origin: `${originLon},${originLat}`,
+    destination: `${destLon},${destLat}`,
+  });
+  if (category !== null) params.set("category", category);
+  if (miles !== undefined) params.set("miles", String(miles));
+  const res = await fetchWithTimeout(
+    `${API_BASE}/suggest-stop?${params}`,
+    ROUTE_TIMEOUT_MS,
+  );
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.detail ?? `Suggest-stop failed: ${res.status}`);
+  }
   return res.json();
 }
 

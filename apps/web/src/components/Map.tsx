@@ -4,14 +4,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   getConfig,
   getRoute,
+  suggestStop,
   type Config,
   type RouteResponse,
+  type StopSuggestion,
 } from "../lib/api";
 import { useServiceArea } from "../hooks/useServiceArea";
 import { useRouteCheck, type RouteCheckResult } from "../hooks/useRouteCheck";
 import { VerdictPanel } from "./VerdictPanel";
-import { SANTA_FE_PLACES, type PlaceCategory } from "../data/places";
-import { findNearbyStop, type NearbyStop } from "../lib/nearbyStop";
+import type { PlaceCategory } from "../data/places";
 import {
   parseShareableRouteState,
   replaceShareableRouteState,
@@ -70,7 +71,8 @@ export function Map({ miles }: MapProps) {
   const [clickPhase, setClickPhase] = useState<ClickPhase>("set-origin");
   const [origin, setOrigin] = useState<[number, number] | null>(null);
   const [destination, setDestination] = useState<[number, number] | null>(null);
-  const [nearbyStop, setNearbyStop] = useState<NearbyStop | null>(null);
+  const [nearbyStop, setNearbyStop] = useState<StopSuggestion | null>(null);
+  const [stopLoading, setStopLoading] = useState(false);
   const [stopCategory, setStopCategory] = useState<PlaceCategory | null>(null);
   const [detourResult, setDetourResult] = useState<RouteCheckResult | null>(null);
   const [showingDetour, setShowingDetour] = useState(false);
@@ -201,7 +203,7 @@ export function Map({ miles }: MapProps) {
     [],
   );
 
-  const updateNearbyStopMarker = useCallback((stop: NearbyStop | null) => {
+  const updateNearbyStopMarker = useCallback((stop: StopSuggestion | null) => {
     if (stopMarkerRef.current) {
       stopMarkerRef.current.remove();
       stopMarkerRef.current = null;
@@ -213,34 +215,49 @@ export function Map({ miles }: MapProps) {
     const stopEl = document.createElement("div");
     stopEl.className = "stop-marker";
     stopMarkerRef.current = new maplibregl.Marker({ element: stopEl })
-      .setLngLat(stop.place.coordinates)
+      .setLngLat(stop.coordinates)
       .addTo(map);
   }, []);
 
-  const selectNearbyStop = useCallback(
-    (
-      routeCoords: number[][],
+  const fetchAndSetStop = useCallback(
+    async (
+      originCoord: [number, number],
+      destinationCoord: [number, number],
       category: PlaceCategory | null,
-    ): NearbyStop | null => {
-      const candidates = category
-        ? SANTA_FE_PLACES.filter((p) => p.category === category)
-        : SANTA_FE_PLACES;
-      const stop = findNearbyStop(routeCoords, candidates);
-      setNearbyStop(stop);
-      updateNearbyStopMarker(stop);
-      return stop;
+      currentMiles: number,
+    ): Promise<StopSuggestion | null> => {
+      setStopLoading(true);
+      setNearbyStop(null);
+      try {
+        const res = await suggestStop(
+          originCoord[0], originCoord[1],
+          destinationCoord[0], destinationCoord[1],
+          category,
+          currentMiles,
+        );
+        const stop = res.stop ?? null;
+        setNearbyStop(stop);
+        updateNearbyStopMarker(stop);
+        return stop;
+      } catch {
+        console.error("suggest-stop failed");
+        updateNearbyStopMarker(null);
+        return null;
+      } finally {
+        setStopLoading(false);
+      }
     },
     [updateNearbyStopMarker],
   );
 
   const precomputeDetour = useCallback(
     async (
-      stop: NearbyStop | null,
+      stop: StopSuggestion | null,
       originCoord: [number, number],
       destinationCoord: [number, number],
       currentMiles: number,
     ): Promise<RouteCheckResult | null> => {
-      detourStopKeyRef.current = stop ? stop.place.name : null;
+      detourStopKeyRef.current = stop ? stop.name : null;
       setDetourResult(null);
 
       if (!stop) {
@@ -248,8 +265,8 @@ export function Map({ miles }: MapProps) {
         return null;
       }
 
-      const stopKey = stop.place.name;
-      const [viaLon, viaLat] = stop.place.coordinates;
+      const stopKey = stop.name;
+      const [viaLon, viaLat] = stop.coordinates;
       setDetourLoading(true);
 
       try {
@@ -286,7 +303,7 @@ export function Map({ miles }: MapProps) {
       destinationCoord: [number, number],
       category: PlaceCategory | null,
       options?: { precomputeDetour?: boolean },
-    ): Promise<{ stop: NearbyStop | null; detour: RouteCheckResult | null }> => {
+    ): Promise<{ stop: StopSuggestion | null; detour: RouteCheckResult | null }> => {
       setDestination(destinationCoord);
       setShowingDetour(false);
       removeAltRoute();
@@ -301,8 +318,8 @@ export function Map({ miles }: MapProps) {
         4,
       );
 
-      const stop = selectNearbyStop(routeData.route.geometry.coordinates, category);
       setClickPhase("route-shown");
+      const stop = await fetchAndSetStop(originCoord, destinationCoord, category, miles);
 
       if (options?.precomputeDetour === false) {
         setDetourResult(null);
@@ -315,11 +332,11 @@ export function Map({ miles }: MapProps) {
     },
     [
       miles,
+      fetchAndSetStop,
       placeDestinationMarker,
       precomputeDetour,
       removeAltRoute,
       renderRouteLine,
-      selectNearbyStop,
     ],
   );
 
@@ -374,6 +391,7 @@ export function Map({ miles }: MapProps) {
     setOrigin(null);
     setDestination(null);
     setNearbyStop(null);
+    setStopLoading(false);
     setStopCategory(null);
     setDetourResult(null);
     setShowingDetour(false);
@@ -577,6 +595,7 @@ export function Map({ miles }: MapProps) {
     clearResult();
     detourStopKeyRef.current = null;
     setNearbyStop(null);
+    setStopLoading(false);
     setDestination(null);
     setDetourResult(null);
     setShowingDetour(false);
@@ -623,6 +642,7 @@ export function Map({ miles }: MapProps) {
           removeRouteAndDestination();
           clearResult();
           setNearbyStop(null);
+          setStopLoading(false);
           setDestination(null);
           setDetourResult(null);
           setShowingDetour(false);
@@ -686,7 +706,7 @@ export function Map({ miles }: MapProps) {
 
     setDetourLoading(true);
     try {
-      const [viaLon, viaLat] = nearbyStop.place.coordinates;
+      const [viaLon, viaLat] = nearbyStop.coordinates;
       const data = await getRoute(
         destination[0],
         destination[1],
@@ -735,20 +755,20 @@ export function Map({ miles }: MapProps) {
       setShowingDetour(false);
       removeAltRoute();
       detourStopKeyRef.current = null;
+      setDetourResult(null);
 
       if (!result || !origin || !destination) return;
 
-      const stop = selectNearbyStop(result.route.geometry.coordinates, cat);
-      setDetourResult(null);
-
-      if (!stop) {
-        setDetourLoading(false);
-        return;
-      }
-
-      void precomputeDetour(stop, origin, destination, miles);
+      void (async () => {
+        const stop = await fetchAndSetStop(origin, destination, cat, miles);
+        if (!stop) {
+          setDetourLoading(false);
+          return;
+        }
+        void precomputeDetour(stop, origin, destination, miles);
+      })();
     },
-    [destination, miles, origin, precomputeDetour, removeAltRoute, result, selectNearbyStop],
+    [destination, fetchAndSetStop, miles, origin, precomputeDetour, removeAltRoute, result],
   );
 
   if (!config) {
@@ -787,6 +807,7 @@ export function Map({ miles }: MapProps) {
           error={error}
           onReset={handleReset}
           nearbyStop={nearbyStop}
+          stopLoading={stopLoading}
           onRouteViaStop={!showingDetour && nearbyStop ? handleRouteViaStop : null}
           detourPreview={detourPreview}
           stopCategory={stopCategory}
