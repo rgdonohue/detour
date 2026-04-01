@@ -7,18 +7,21 @@ from config import settings
 from ors_client import ORS_BASE
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+if not logger.handlers:
+    _h = logging.StreamHandler()
+    _h.setFormatter(logging.Formatter("%(levelname)s:%(name)s:%(message)s"))
+    logger.addHandler(_h)
+    logger.propagate = False
 
 # ORS POI service is only available on the public API host.
 _POI_HOST = "api.openrouteservice.org"
 _POI_URL = f"https://{_POI_HOST}/pois"
 
 _CATEGORY_MAP: dict[str, dict] = {
-    "history": {"category_ids": [223, 224, 228, 237, 239, 240, 243]},
-    "art":     {"category_ids": [131, 132, 134, 621]},
-    "food":    {"category_ids": [561, 563, 564, 569, 570]},
+    "art":  {"category_ids": [131, 132, 134, 621]},
+    "food": {"category_ids": [561, 563, 564, 569, 570]},
 }
-# None (Any) uses category_group_ids instead of category_ids
-_ANY_FILTER: dict = {"category_group_ids": [130, 220, 260, 330, 560, 620]}
 
 
 async def get_pois_along_route(
@@ -41,11 +44,11 @@ async def get_pois_along_route(
         logger.debug("ORS_API_KEY not set — skipping POI query")
         return []
 
-    if category in ("scenic", "culture"):
+    if category not in _CATEGORY_MAP:
         logger.error("get_pois_along_route called with ineligible category=%s", category)
         return []
 
-    filters = _CATEGORY_MAP.get(category) if category else _ANY_FILTER
+    filters = _CATEGORY_MAP[category]
 
     body: dict = {
         "request": "pois",
@@ -66,11 +69,23 @@ async def get_pois_along_route(
                 json=body,
                 timeout=5.0,
             )
-            resp.raise_for_status()
-        data = resp.json()
+            if not resp.is_success:
+                logger.warning(
+                    "ORS POI request failed: %s — body: %s",
+                    resp.status_code,
+                    resp.text[:500],
+                )
+                return []
+            data = resp.json()
     except Exception as e:
         logger.warning("ORS POI request failed: %s", e)
         return []
 
     features = data.get("features", [])
-    return [f for f in features if f.get("properties", {}).get("name")]
+    named = [
+        f for f in features
+        if (n := f.get("properties", {}).get("osm_tags", {}).get("name", ""))
+        and not n.isdigit()
+    ]
+    logger.info("ORS POI raw=%d named=%d", len(features), len(named))
+    return named

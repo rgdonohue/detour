@@ -18,6 +18,13 @@ from poi_client import get_pois_along_route
 from stop_selector import ORS_ELIGIBLE_CATEGORIES, select_from_ors, select_from_static
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+# Uvicorn only configures its own loggers; app loggers propagate to root at WARNING, so INFO is dropped.
+if not logger.handlers:
+    _h = logging.StreamHandler()
+    _h.setFormatter(logging.Formatter("%(levelname)s:%(name)s:%(message)s"))
+    logger.addHandler(_h)
+    logger.propagate = False
 
 app = FastAPI(title="3-Mile Drive Map API")
 

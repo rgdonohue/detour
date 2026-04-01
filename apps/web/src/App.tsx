@@ -13,8 +13,8 @@ function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>What's Within Driving Distance?</h1>
-        <p>Santa Fe, NM</p>
+        <h1>The Long Way Home</h1>
+        <p>Place-aware routing in Santa Fe</p>
       </header>
       <DistancePresets
         presets={MILE_PRESETS}

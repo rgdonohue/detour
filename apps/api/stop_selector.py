@@ -5,7 +5,7 @@ import math
 logger = logging.getLogger(__name__)
 
 # ORS POIs are only attempted for these categories.
-ORS_ELIGIBLE_CATEGORIES: frozenset = frozenset({"history", "art", "food", None})
+ORS_ELIGIBLE_CATEGORIES: frozenset = frozenset({"art", "food"})
 
 _MAX_DISTANCE_MILES = 1.0
 _EARTH_RADIUS_MILES = 3958.8
@@ -70,9 +70,14 @@ def select_from_ors(
         if dist < best_dist:
             best_dist = dist
             props = feature.get("properties", {})
+            osm_tags = props.get("osm_tags", {})
+            category_ids = props.get("category_ids", {})
+            category_raw = next(
+                (v.get("category_group", "") for v in category_ids.values()), ""
+            )
             best = {
-                "name": props.get("name", ""),
-                "category": props.get("category", ""),
+                "name": osm_tags.get("name", ""),
+                "category": category_raw,
                 "coordinates": [lon, lat],
                 "description": None,
                 "distance_miles": dist,
