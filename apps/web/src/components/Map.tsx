@@ -42,6 +42,7 @@ interface MapProps {
   miles: number;
   presets?: number[];
   onMilesChange?: (miles: number) => void;
+  resetRef?: { current: () => void };
 }
 
 function toRouteCheckResult(
@@ -58,7 +59,7 @@ function toRouteCheckResult(
   };
 }
 
-export function Map({ miles, presets, onMilesChange }: MapProps) {
+export function Map({ miles, presets, onMilesChange, resetRef }: MapProps) {
   const initialShareStateRef = useRef(parseShareableRouteState(MILE_PRESETS));
   const restoreStartedRef = useRef(false);
 
@@ -580,6 +581,10 @@ export function Map({ miles, presets, onMilesChange }: MapProps) {
     miles,
     placeOriginMarker,
   ]);
+
+  useEffect(() => {
+    if (resetRef) resetRef.current = handleReset;
+  }, [resetRef, handleReset]);
 
   useEffect(() => {
     if (!restoreReady) return;

@@ -102,6 +102,26 @@ h1, h2, h3 {
   color: var(--text-secondary);
 }
 
+/* Reset button — top-right of header */
+.header-reset-btn {
+  margin-left: auto;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.75rem;
+  font-family: "DM Sans", system-ui, sans-serif;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid rgba(44, 24, 16, 0.15);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.header-reset-btn:hover {
+  color: var(--dark-brown);
+  border-color: rgba(44, 24, 16, 0.3);
+}
+
 /* Distance presets — inside sidebar */
 .distance-presets {
   display: flex;
