@@ -64,7 +64,7 @@ function toRouteCheckResult(
 }
 
 export function Map({ resetRef, mode, onModeChange }: MapProps) {
-  const initialShareStateRef = useRef(parseShareableRouteState(MILE_PRESETS));
+  const initialShareStateRef = useRef(parseShareableRouteState());
   const restoreStartedRef = useRef(false);
 
   const containerRef = useRef<HTMLDivElement>(null);

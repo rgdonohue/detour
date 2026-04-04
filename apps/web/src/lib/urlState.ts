@@ -4,7 +4,6 @@ import type { TravelMode } from "./api";
 export interface ShareableRouteState {
   origin: [number, number] | null;
   destination: [number, number] | null;
-  miles: number | null;
   category: PlaceCategory | null;
   detour: boolean;
   mode: TravelMode;
@@ -20,31 +19,17 @@ const CATEGORY_VALUES: readonly PlaceCategory[] = [
 
 function parseCoord(value: string | null): [number, number] | null {
   if (!value) return null;
-
   const parts = value.split(",");
   if (parts.length !== 2) return null;
-
   const lon = Number(parts[0]);
   const lat = Number(parts[1]);
-
   if (!Number.isFinite(lon) || !Number.isFinite(lat)) return null;
   if (lon < -180 || lon > 180 || lat < -90 || lat > 90) return null;
-
   return [lon, lat];
-}
-
-function normalizeMiles(value: string | null, presets: readonly number[]): number | null {
-  if (!value) return null;
-
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return null;
-
-  return presets.includes(parsed) ? parsed : null;
 }
 
 function normalizeCategory(value: string | null): PlaceCategory | null {
   if (!value) return null;
-
   return CATEGORY_VALUES.includes(value as PlaceCategory)
     ? (value as PlaceCategory)
     : null;
@@ -58,62 +43,32 @@ function encodeCoord(coord: [number, number]): string {
   return `${formatCoord(coord[0])},${formatCoord(coord[1])}`;
 }
 
-export function parseShareableRouteState(
-  presets: readonly number[],
-): ShareableRouteState {
+export function parseShareableRouteState(): ShareableRouteState {
   const params = new URLSearchParams(window.location.search);
-
   return {
     origin: parseCoord(params.get("origin")),
     destination: parseCoord(params.get("destination")),
-    miles: normalizeMiles(params.get("miles"), presets),
     category: normalizeCategory(params.get("category")),
     detour: params.get("detour") === "1",
     mode: params.get("mode") === "walk" ? "walk" : "drive",
   };
 }
 
-export function getInitialMilesFromUrl(
-  presets: readonly number[],
-  fallbackMiles: number,
-): number {
-  const { miles } = parseShareableRouteState(presets);
-  return miles ?? fallbackMiles;
-}
-
-export function replaceShareableRouteState(
-  state: ShareableRouteState,
-): void {
+export function replaceShareableRouteState(state: ShareableRouteState): void {
   const params = new URLSearchParams();
 
-  if (state.origin) {
-    params.set("origin", encodeCoord(state.origin));
-  }
-  if (state.destination) {
-    params.set("destination", encodeCoord(state.destination));
-  }
+  if (state.origin) params.set("origin", encodeCoord(state.origin));
+  if (state.destination) params.set("destination", encodeCoord(state.destination));
 
-  const hasOriginContext = state.origin !== null || state.destination !== null;
   const hasResolvedRoute = state.destination !== null;
-
-  if (hasOriginContext && state.miles !== null) {
-    params.set("miles", String(state.miles));
-  }
-  if (hasResolvedRoute && state.category) {
-    params.set("category", state.category);
-  }
-  if (hasResolvedRoute && state.detour) {
-    params.set("detour", "1");
-  }
-  if (state.mode === "walk") {
-    params.set("mode", "walk");
-  }
+  if (hasResolvedRoute && state.category) params.set("category", state.category);
+  if (hasResolvedRoute && state.detour) params.set("detour", "1");
+  if (state.mode === "walk") params.set("mode", "walk");
 
   const nextSearch = params.toString();
-  const nextUrl =
-    nextSearch.length > 0
-      ? `${window.location.pathname}?${nextSearch}${window.location.hash}`
-      : `${window.location.pathname}${window.location.hash}`;
+  const nextUrl = nextSearch.length > 0
+    ? `${window.location.pathname}?${nextSearch}${window.location.hash}`
+    : `${window.location.pathname}${window.location.hash}`;
 
   window.history.replaceState(null, "", nextUrl);
 }

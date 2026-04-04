@@ -3,11 +3,9 @@ import { Map } from "./components/Map";
 import { parseShareableRouteState } from "./lib/urlState";
 import type { TravelMode } from "./lib/api";
 
-const MILE_PRESETS = [1, 3, 5] as const;
-
 function App() {
   const [mode, setMode] = useState<TravelMode>(() =>
-    parseShareableRouteState(MILE_PRESETS).mode,
+    parseShareableRouteState().mode,
   );
   const resetRef = useRef<() => void>(() => {});
 
