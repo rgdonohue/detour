@@ -647,6 +647,38 @@ h1, h2, h3 {
   color: var(--dark-brown);
 }
 
+/* Ring legend — lower-left map overlay */
+.ring-legend {
+  position: absolute;
+  bottom: 28px;
+  left: 12px;
+  padding: 5px 8px;
+  background: rgba(250, 247, 242, 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(44, 24, 16, 0.1);
+  border-radius: 4px;
+  z-index: 5;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ring-legend__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ring-legend__label {
+  font-size: 0.5625rem;
+  font-family: "DM Sans", system-ui, sans-serif;
+  font-weight: 500;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
 /* Status label: centered prompt for click phase */
 .map-status {
   position: absolute;

@@ -32,6 +32,11 @@ function effectiveMilesFor(m: TravelMode): number {
   return m === "walk" ? 2 : 5;
 }
 
+/** Ring distances shown on map, based on mode */
+function ringMilesFor(m: TravelMode): number[] {
+  return m === "walk" ? [0.5, 1, 2] : [1, 3, 5];
+}
+
 /** Fallback when API is unavailable — Capitol coordinates */
 const FALLBACK_CONFIG: Config = {
   origin_name: "New Mexico State Capitol",
@@ -837,6 +842,24 @@ export function Map({ resetRef, mode, onModeChange }: MapProps) {
     >
       <div ref={containerRef} className="map-container" />
       {statusText && <div className="map-status">{statusText}</div>}
+      {origin && (
+        <div className="ring-legend">
+          {ringMilesFor(mode).map((mi, i) => (
+            <div key={mi} className="ring-legend__row">
+              <svg width="22" height="8" aria-hidden="true">
+                <line
+                  x1="0" y1="4" x2="22" y2="4"
+                  stroke="#C45B28"
+                  strokeOpacity="0.7"
+                  strokeWidth={1.5 + i * 0.75}
+                  strokeDasharray="4 3"
+                />
+              </svg>
+              <span className="ring-legend__label">{mi} mi</span>
+            </div>
+          ))}
+        </div>
+      )}
       <aside className="app-sidebar">
         <ModeToggle mode={mode} onChange={handleModeChange} />
         {showVerdictPanel && (
