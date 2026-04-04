@@ -7,9 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from cache import (
     get as cache_get,
-    get_route_based_polygon,
     set as cache_set,
-    set_route_based_polygon,
 )
 from config import settings
 from conversion import miles_to_meters
@@ -62,54 +60,46 @@ def _mode_to_profile(mode: str) -> str:
     return "foot-walking" if mode == "walk" else "driving-car"
 
 
+# Ring distances per mode (miles)
+_RING_MILES: dict[str, list[float]] = {
+    "drive": [1.0, 3.0, 5.0],
+    "walk":  [0.5, 1.0, 2.0],
+}
+
+
 @app.get("/api/area")
-async def get_area(miles: float = 3, origin: str | None = None, mode: str = "drive"):
-    """Returns cached GeoJSON FeatureCollection for the service area.
-    Accepts optional origin=lon,lat and mode=drive|walk; defaults to configured origin."""
+async def get_area(origin: str | None = None, mode: str = "drive"):
+    """Returns a GeoJSON FeatureCollection with three concentric isodistance rings.
+    Ring distances are determined by mode: drive=1/3/5 mi, walk=0.5/1/2 mi.
+    Accepts optional origin=lon,lat; defaults to configured origin."""
     if origin:
         try:
             origin_lon, origin_lat = _parse_to_param(origin)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=f"Invalid origin: {e}")
-        is_default_origin = False
     else:
         origin_lon = settings.ORIGIN_LON
         origin_lat = settings.ORIGIN_LAT
-        is_default_origin = True
 
-    # Try route-based polygon only for default origin in drive mode
-    if is_default_origin and mode == "drive":
-        route_based = get_route_based_polygon(miles)
-        if route_based:
-            now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-            for feat in route_based.get("features", []):
-                feat.setdefault("properties", {})["computed_at"] = now
-            return route_based
+    ring_miles = _RING_MILES.get(mode, _RING_MILES["drive"])
+    distances_meters = [miles_to_meters(m) for m in ring_miles]
 
     profile = _mode_to_profile(mode)
-    cache_key = f"area_{miles}_{profile}_{origin_lon}_{origin_lat}"
+    cache_key = f"area_rings_{profile}_{origin_lon}_{origin_lat}"
     cached = cache_get(cache_key)
     if cached:
         return cached
 
-    distance_meters = miles_to_meters(miles)
     try:
-        result = await get_isodistance(origin_lon, origin_lat, distance_meters, profile)
+        result = await get_isodistance(origin_lon, origin_lat, distances_meters, profile)
     except ValueError as e:
         msg = str(e)
         if "rate limited" in msg.lower():
             raise HTTPException(status_code=429, detail=msg)
         raise HTTPException(status_code=502, detail=msg)
-    except Exception as e:
+    except Exception:
         logger.exception("ORS isochrones error")
         raise HTTPException(status_code=502, detail="Upstream routing error")
-
-    now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-    for feat in result.get("features", []):
-        props = feat.setdefault("properties", {})
-        props["distance_miles"] = miles
-        props["distance_meters"] = round(distance_meters, 0)
-        props["computed_at"] = now
 
     cache_set(cache_key, result)
     return result

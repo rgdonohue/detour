@@ -13,7 +13,6 @@ import {
 import { useServiceArea } from "../hooks/useServiceArea";
 import { useRouteCheck, type RouteCheckResult } from "../hooks/useRouteCheck";
 import { VerdictPanel } from "./VerdictPanel";
-import { DistancePresets } from "./DistancePresets";
 import { ModeToggle } from "./ModeToggle";
 import type { PlaceCategory } from "../data/places";
 import {
@@ -27,7 +26,11 @@ const TONER_LITE_URL =
 
 const ROUTE_COLOR = "#C45B28";       // terracotta — used for all routes
 const ROUTE_OUTSIDE_COLOR = "#B8432F"; // outside-limit override
-const MILE_PRESETS = [1, 3, 5] as const;
+
+/** Effective distance limit for route verdict + stop search, based on mode */
+function effectiveMilesFor(m: TravelMode): number {
+  return m === "walk" ? 2 : 5;
+}
 
 /** Fallback when API is unavailable — Capitol coordinates */
 const FALLBACK_CONFIG: Config = {
@@ -41,9 +44,6 @@ const FALLBACK_CONFIG: Config = {
 type ClickPhase = "set-origin" | "set-destination" | "route-shown";
 
 interface MapProps {
-  miles: number;
-  presets?: number[];
-  onMilesChange?: (miles: number) => void;
   resetRef?: { current: () => void };
   mode: TravelMode;
   onModeChange: (mode: TravelMode) => void;
@@ -63,7 +63,7 @@ function toRouteCheckResult(
   };
 }
 
-export function Map({ miles, presets, onMilesChange, resetRef, mode, onModeChange }: MapProps) {
+export function Map({ resetRef, mode, onModeChange }: MapProps) {
   const initialShareStateRef = useRef(parseShareableRouteState(MILE_PRESETS));
   const restoreStartedRef = useRef(false);
 
@@ -90,7 +90,7 @@ export function Map({ miles, presets, onMilesChange, resetRef, mode, onModeChang
   const [detourLoading, setDetourLoading] = useState(false);
   const [restoreReady, setRestoreReady] = useState(false);
 
-  const { polygon } = useServiceArea(miles, origin?.[0], origin?.[1], mode);
+  const { polygon } = useServiceArea(origin?.[0], origin?.[1], mode);
   const { checkRoute, clearResult, result, isLoading, error } = useRouteCheck();
 
   useEffect(() => {
@@ -336,10 +336,9 @@ export function Map({ miles, presets, onMilesChange, resetRef, mode, onModeChang
       );
 
       setClickPhase("route-shown");
-      await fetchAndSetStops(originCoord, destinationCoord, category, miles, currentMode);
+      await fetchAndSetStops(originCoord, destinationCoord, category, effectiveMilesFor(currentMode), currentMode);
     },
     [
-      miles,
       fetchAndSetStops,
       placeDestinationMarker,
       removeAltRoute,
@@ -463,11 +462,9 @@ export function Map({ miles, presets, onMilesChange, resetRef, mode, onModeChang
     if (!map) return;
 
     const sourceId = "service-area";
-    const fillLayerId = "service-area-fill";
     const lineLayerId = "service-area-line";
 
     const removeLayers = () => {
-      if (map.getLayer(fillLayerId)) map.removeLayer(fillLayerId);
       if (map.getLayer(lineLayerId)) map.removeLayer(lineLayerId);
       if (map.getSource(sourceId)) map.removeSource(sourceId);
     };
@@ -483,12 +480,7 @@ export function Map({ miles, presets, onMilesChange, resetRef, mode, onModeChang
         return;
       }
       map.addSource(sourceId, { type: "geojson", data: polygon });
-      map.addLayer({
-        id: fillLayerId,
-        type: "fill",
-        source: sourceId,
-        paint: { "fill-color": "#C45B28", "fill-opacity": 0.12 },
-      });
+      // Three concentric dashed rings — no fill, width grows with distance
       map.addLayer({
         id: lineLayerId,
         type: "line",
@@ -496,8 +488,14 @@ export function Map({ miles, presets, onMilesChange, resetRef, mode, onModeChang
         layout: { "line-join": "round", "line-cap": "round" },
         paint: {
           "line-color": "#C45B28",
-          "line-width": 2,
-          "line-dasharray": [2, 1],
+          "line-opacity": 0.7,
+          "line-width": [
+            "interpolate", ["linear"],
+            ["get", "distance_miles"],
+            0.5, 1.5,
+            5.0, 3.0,
+          ],
+          "line-dasharray": [5, 4],
         },
       });
     };
@@ -544,7 +542,7 @@ export function Map({ miles, presets, onMilesChange, resetRef, mode, onModeChang
         const shortest = await checkRoute(
           destinationCoord[0],
           destinationCoord[1],
-          miles,
+          effectiveMilesFor(mode),
           originCoord[0],
           originCoord[1],
           mode,
@@ -573,7 +571,6 @@ export function Map({ miles, presets, onMilesChange, resetRef, mode, onModeChang
     applyShortestRouteToMap,
     checkRoute,
     config,
-    miles,
     mode,
     placeOriginMarker,
   ]);
@@ -588,12 +585,11 @@ export function Map({ miles, presets, onMilesChange, resetRef, mode, onModeChang
     replaceShareableRouteState({
       origin,
       destination,
-      miles,
       category: stopCategory,
       detour: showingDetour,
       mode,
     });
-  }, [restoreReady, origin, destination, miles, stopCategory, showingDetour, mode]);
+  }, [restoreReady, origin, destination, stopCategory, showingDetour, mode]);
 
   useEffect(() => {
     removeRouteAndDestination();
@@ -607,7 +603,7 @@ export function Map({ miles, presets, onMilesChange, resetRef, mode, onModeChang
     setShowingDetour(false);
     setDetourLoading(false);
     setClickPhase((prev) => (prev === "route-shown" ? "set-destination" : prev));
-  }, [miles, removeRouteAndDestination, clearResult]);
+  }, [removeRouteAndDestination, clearResult]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -666,7 +662,7 @@ export function Map({ miles, presets, onMilesChange, resetRef, mode, onModeChang
         isCheckingRef.current = true;
         detourStopKeyRef.current = null;
 
-        checkRoute(lng, lat, miles, origin[0], origin[1], mode)
+        checkRoute(lng, lat, effectiveMilesFor(mode), origin[0], origin[1], mode)
           .then((data) =>
             applyShortestRouteToMap(
               data,
@@ -697,7 +693,6 @@ export function Map({ miles, presets, onMilesChange, resetRef, mode, onModeChang
     clickPhase,
     config,
     isLoading,
-    miles,
     mode,
     origin,
     placeOriginMarker,
@@ -729,7 +724,7 @@ export function Map({ miles, presets, onMilesChange, resetRef, mode, onModeChang
       try {
         const [viaLon, viaLat] = stop.coordinates;
         const data = await getRoute(
-          destination[0], destination[1], miles,
+          destination[0], destination[1], effectiveMilesFor(mode),
           origin[0], origin[1],
           viaLon, viaLat,
           mode,
@@ -745,7 +740,7 @@ export function Map({ miles, presets, onMilesChange, resetRef, mode, onModeChang
         if (detourStopKeyRef.current === stopKey) setDetourLoading(false);
       }
     },
-    [applyDetourToMap, destination, fitRouteBounds, miles, mode, origin, removeAltRoute, renderRouteLine, result],
+    [applyDetourToMap, destination, fitRouteBounds, mode, origin, removeAltRoute, renderRouteLine, result],
   );
 
   // Keep ref current so map marker click handlers always call the latest version
@@ -780,9 +775,9 @@ export function Map({ miles, presets, onMilesChange, resetRef, mode, onModeChang
 
       if (!result || !origin || !destination) return;
 
-      void fetchAndSetStops(origin, destination, cat, miles, mode);
+      void fetchAndSetStops(origin, destination, cat, effectiveMilesFor(mode), mode);
     },
-    [destination, fetchAndSetStops, miles, mode, origin, removeAltRoute, result],
+    [destination, fetchAndSetStops, mode, origin, removeAltRoute, result],
   );
 
   const handleModeChange = useCallback(
@@ -802,7 +797,7 @@ export function Map({ miles, presets, onMilesChange, resetRef, mode, onModeChang
       setNearbyStops([]);
       removeAltRoute();
 
-      checkRoute(destination[0], destination[1], miles, origin[0], origin[1], newMode)
+      checkRoute(destination[0], destination[1], effectiveMilesFor(newMode), origin[0], origin[1], newMode)
         .then((data) =>
           applyShortestRouteToMap(data, origin, destination, stopCategory, newMode),
         )
@@ -815,7 +810,6 @@ export function Map({ miles, presets, onMilesChange, resetRef, mode, onModeChang
       onModeChange,
       origin,
       destination,
-      miles,
       stopCategory,
       clearStopMarkers,
       removeAltRoute,
@@ -845,15 +839,12 @@ export function Map({ miles, presets, onMilesChange, resetRef, mode, onModeChang
       {statusText && <div className="map-status">{statusText}</div>}
       <aside className="app-sidebar">
         <ModeToggle mode={mode} onChange={handleModeChange} />
-        {presets && onMilesChange && (
-          <DistancePresets presets={presets} selected={miles} onChange={onMilesChange} />
-        )}
         {showVerdictPanel && (
           <VerdictPanel
             distance_miles={activeResult?.distance_miles ?? 0}
             duration_seconds={activeResult?.duration_seconds ?? 0}
             within_limit={activeResult?.within_limit ?? false}
-            limit_miles={miles}
+            limit_miles={effectiveMilesFor(mode)}
             isLoading={isLoading}
             error={error}
             onReset={handleReset}

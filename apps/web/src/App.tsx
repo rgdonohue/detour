@@ -1,14 +1,11 @@
 import { useRef, useState } from "react";
 import { Map } from "./components/Map";
-import { getInitialMilesFromUrl, parseShareableRouteState } from "./lib/urlState";
+import { parseShareableRouteState } from "./lib/urlState";
 import type { TravelMode } from "./lib/api";
 
-const MILE_PRESETS = [1, 3, 5];
+const MILE_PRESETS = [1, 3, 5] as const;
 
 function App() {
-  const [selectedMiles, setSelectedMiles] = useState(() =>
-    getInitialMilesFromUrl(MILE_PRESETS, 3),
-  );
   const [mode, setMode] = useState<TravelMode>(() =>
     parseShareableRouteState(MILE_PRESETS).mode,
   );
@@ -29,9 +26,6 @@ function App() {
       </header>
       <div className="app-map-wrapper">
         <Map
-          miles={selectedMiles}
-          presets={MILE_PRESETS}
-          onMilesChange={setSelectedMiles}
           resetRef={resetRef}
           mode={mode}
           onModeChange={setMode}

@@ -12,32 +12,28 @@ logger = logging.getLogger(__name__)
 ORS_BASE = "https://api.openrouteservice.org"
 
 
-def _mock_isodistance_geojson(lon: float, lat: float, distance_meters: float) -> dict:
-    """Return mock GeoJSON when ORS API key is missing."""
-    distance_miles = distance_meters / 1609.344
-    # Small square around origin for mock polygon
-    offset = 0.01
-    coords = [
-        [lon - offset, lat - offset],
-        [lon + offset, lat - offset],
-        [lon + offset, lat + offset],
-        [lon - offset, lat + offset],
-        [lon - offset, lat - offset],
-    ]
-    return {
-        "type": "FeatureCollection",
-        "features": [
-            {
-                "type": "Feature",
-                "geometry": {"type": "Polygon", "coordinates": [coords]},
-                "properties": {
-                    "distance_miles": round(distance_miles, 2),
-                    "distance_meters": distance_meters,
-                    "computed_at": "mock",
-                },
-            }
-        ],
-    }
+def _mock_isodistance_geojson(lon: float, lat: float, distances_meters: list[float]) -> dict:
+    """Return mock GeoJSON when ORS API key is missing — one square per distance."""
+    features = []
+    for d in distances_meters:
+        offset = (d / 1609.344) * 0.008  # rough lat/lon scale
+        coords = [
+            [lon - offset, lat - offset],
+            [lon + offset, lat - offset],
+            [lon + offset, lat + offset],
+            [lon - offset, lat + offset],
+            [lon - offset, lat - offset],
+        ]
+        features.append({
+            "type": "Feature",
+            "geometry": {"type": "Polygon", "coordinates": [coords]},
+            "properties": {
+                "distance_miles": round(d / 1609.344, 2),
+                "distance_meters": d,
+                "computed_at": "mock",
+            },
+        })
+    return {"type": "FeatureCollection", "features": features}
 
 
 def _mock_route_response(
@@ -72,14 +68,19 @@ def _mock_route_response(
     }
 
 
-async def get_isodistance(lon: float, lat: float, distance_meters: float, profile: str = "driving-car") -> dict:
+async def get_isodistance(
+    lon: float,
+    lat: float,
+    distances_meters: list[float],
+    profile: str = "driving-car",
+) -> dict:
     """
-    Fetch isodistance polygon from ORS isochrones.
-    Returns GeoJSON FeatureCollection.
+    Fetch isodistance polygons from ORS isochrones — one per value in distances_meters.
+    Returns GeoJSON FeatureCollection with one feature per distance.
     """
     if not settings.ORS_API_KEY:
         logger.warning("ORS_API_KEY not set — returning mock isodistance GeoJSON")
-        return _mock_isodistance_geojson(lon, lat, distance_meters)
+        return _mock_isodistance_geojson(lon, lat, distances_meters)
 
     async with httpx.AsyncClient() as client:
         resp = await client.post(
@@ -87,7 +88,7 @@ async def get_isodistance(lon: float, lat: float, distance_meters: float, profil
             headers={"Authorization": settings.ORS_API_KEY},
             json={
                 "locations": [[lon, lat]],
-                "range": [int(distance_meters)],
+                "range": [int(d) for d in distances_meters],
                 "range_type": "distance",
                 "units": "m",
                 "smoothing": 25,
@@ -97,22 +98,23 @@ async def get_isodistance(lon: float, lat: float, distance_meters: float, profil
 
         if resp.status_code == 401:
             logger.warning("ORS API key invalid — returning mock isodistance GeoJSON")
-            return _mock_isodistance_geojson(lon, lat, distance_meters)
+            return _mock_isodistance_geojson(lon, lat, distances_meters)
         if resp.status_code == 429:
             raise ValueError("ORS rate limited")
         resp.raise_for_status()
 
     data = resp.json()
-    # ORS returns features with value in properties; convert to our schema
     features = data.get("features", [])
 
     def to_feature(f: dict) -> dict:
+        # ORS tags each feature with the range value that generated it
+        value_m = f.get("properties", {}).get("value", distances_meters[-1])
         return {
             "type": "Feature",
             "geometry": f.get("geometry", {}),
             "properties": {
-                "distance_miles": distance_meters / 1609.344,
-                "distance_meters": distance_meters,
+                "distance_miles": round(value_m / 1609.344, 3),
+                "distance_meters": value_m,
                 "computed_at": "now",
             },
         }

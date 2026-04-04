@@ -98,12 +98,11 @@ export async function getConfig(): Promise<Config> {
 }
 
 export async function getArea(
-  miles: number = 3,
   originLon?: number,
   originLat?: number,
   mode?: TravelMode,
 ): Promise<AreaResponse> {
-  const params = new URLSearchParams({ miles: String(miles) });
+  const params = new URLSearchParams();
   if (originLon !== undefined && originLat !== undefined) {
     params.set("origin", `${originLon},${originLat}`);
   }
