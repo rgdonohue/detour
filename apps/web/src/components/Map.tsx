@@ -898,6 +898,18 @@ export function Map({ resetRef, mode, onModeChange }: MapProps) {
       )}
       <aside className="app-sidebar">
         <ModeToggle mode={mode} onChange={handleModeChange} />
+        {!showVerdictPanel && (
+          <div className="sidebar-intro">
+            <h2>Explore Santa Fe on foot</h2>
+            <p>
+              Plan a walk and discover stops worth a detour — historic sites,
+              galleries, landmarks, and scenic overlooks along your route.
+            </p>
+            <p className="sidebar-intro__cta">
+              Click the map to set your starting point.
+            </p>
+          </div>
+        )}
         {showVerdictPanel && (
           <VerdictPanel
             distance_miles={activeResult?.distance_miles ?? 0}

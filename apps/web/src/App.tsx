@@ -12,7 +12,7 @@ function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>Detour</h1>
+        <h1>Santa Fe Detour</h1>
         <p>routes shaped by place</p>
         <button
           type="button"

@@ -231,6 +231,36 @@ h1, h2, h3 {
   pointer-events: none;
 }
 
+/* Sidebar intro: shown before any route is computed */
+.sidebar-intro {
+  padding: 1.25rem 1.125rem 1rem;
+  border-top: 1px solid rgba(44, 24, 16, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.sidebar-intro h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 500;
+  font-style: italic;
+  color: var(--dark-brown);
+  line-height: 1.3;
+}
+
+.sidebar-intro p {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.sidebar-intro__cta {
+  color: var(--dark-brown) !important;
+  font-weight: 500;
+}
+
 /* Verdict panel: in-flow within sidebar */
 .verdict-panel {
   padding: 1rem 1.125rem 0.875rem;
