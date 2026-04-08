@@ -1,4 +1,4 @@
-import type { StopSuggestion } from "../lib/api";
+import type { StopSuggestion, TravelMode } from "../lib/api";
 import type { PlaceCategory } from "../data/places";
 import { StopCategorySelector } from "./StopCategorySelector";
 
@@ -48,6 +48,7 @@ interface VerdictPanelProps {
   nearbyStops?: StopSuggestion[];
   selectedStops?: StopSuggestion[];
   stopLoading?: boolean;
+  stopError?: string | null;
   onSelectStop?: ((stop: StopSuggestion) => void) | null;
   detourLoading?: boolean;
   showingDetour?: boolean;
@@ -59,6 +60,7 @@ interface VerdictPanelProps {
   onBackToShortest?: (() => void) | null;
   stopCategory?: PlaceCategory | null;
   onCategoryChange?: ((cat: PlaceCategory | null) => void) | null;
+  mode?: TravelMode;
 }
 
 function formatDuration(seconds: number): string {
@@ -78,6 +80,7 @@ export function VerdictPanel({
   nearbyStops = [],
   selectedStops = [],
   stopLoading = false,
+  stopError = null,
   onSelectStop = null,
   detourLoading = false,
   showingDetour = false,
@@ -85,12 +88,14 @@ export function VerdictPanel({
   onBackToShortest = null,
   stopCategory = null,
   onCategoryChange = null,
+  mode = "walk",
 }: VerdictPanelProps) {
   if (error) {
     const isNoRoute = /no route|not found|unreachable|404/i.test(error);
     const isNetwork = /unable to connect|internet connection/i.test(error);
+    const routeLabel = mode === "walk" ? "walking" : "driving";
     const message = isNoRoute
-      ? "No driving route to this location"
+      ? `No ${routeLabel} route to this location`
       : isNetwork
         ? "Unable to connect. Check your internet connection."
         : "Route check unavailable, try again";
@@ -246,6 +251,8 @@ export function VerdictPanel({
                 <p className="verdict-panel__loading">Computing route…</p>
               )}
             </>
+          ) : stopError ? (
+            <p className="verdict-panel__stop-error">{stopError}</p>
           ) : (
             <p className="verdict-panel__stop-none">
               {stopCategory

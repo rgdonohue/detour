@@ -102,6 +102,8 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
   const stopPopupRef = useRef<maplibregl.Popup | null>(null);
   const isCheckingRef = useRef(false);
   const detourRequestRef = useRef<number>(0);
+  const detourAbortControllerRef = useRef<AbortController | null>(null);
+  const stopSuggestControllerRef = useRef<AbortController | null>(null);
   const onStopClickRef = useRef<(stop: StopSuggestion) => void>(() => {});
 
   const [config, setConfig] = useState<Config | null>(null);
@@ -111,6 +113,7 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
   const [nearbyStops, setNearbyStops] = useState<StopSuggestion[]>([]);
   const [selectedStops, setSelectedStops] = useState<StopSuggestion[]>([]);
   const [stopLoading, setStopLoading] = useState(false);
+  const [stopError, setStopError] = useState<string | null>(null);
   const [stopCategory, setStopCategory] = useState<PlaceCategory | null>(null);
   const [detourResult, setDetourResult] = useState<RouteCheckResult | null>(null);
   const [showingDetour, setShowingDetour] = useState(false);
@@ -301,9 +304,14 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
       currentMiles: number,
       currentMode: TravelMode,
       persistedStops: StopSuggestion[] = [],
-    ): Promise<void> => {
+    ): Promise<StopSuggestion[]> => {
+      stopSuggestControllerRef.current?.abort();
+      stopSuggestControllerRef.current = new AbortController();
+      const { signal } = stopSuggestControllerRef.current;
+
       setStopLoading(true);
       setNearbyStops([]);
+      setStopError(null);
       try {
         const res = await suggestStop(
           originCoord[0], originCoord[1],
@@ -311,18 +319,23 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
           category,
           currentMiles,
           currentMode,
+          signal,
         );
+        if (signal.aborted) return [];
         const stops = res.stops ?? [];
         setNearbyStops(stops);
         // Merge persisted selections not in current results so their markers stay on the map
         const names = new Set(stops.map((s) => s.name));
         const extra = persistedStops.filter((s) => !names.has(s.name));
         updateStopMarkers([...stops, ...extra]);
-      } catch {
-        console.error("suggest-stop failed");
+        return stops;
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") return [];
+        setStopError("Couldn't load stops nearby.");
         updateStopMarkers([...persistedStops]);
+        return [];
       } finally {
-        setStopLoading(false);
+        if (!signal.aborted) setStopLoading(false);
       }
     },
     [updateStopMarkers],
@@ -351,7 +364,7 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
       destinationCoord: [number, number],
       category: PlaceCategory | null,
       currentMode: TravelMode,
-    ): Promise<void> => {
+    ): Promise<StopSuggestion[]> => {
       setDestination(destinationCoord);
       setShowingDetour(false);
       setSelectedStops([]);
@@ -371,7 +384,7 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
       fitRouteBounds(routeData.route.geometry.coordinates);
 
       setClickPhase("route-shown");
-      await fetchAndSetStops(originCoord, destinationCoord, category, effectiveMilesFor(currentMode), currentMode);
+      return fetchAndSetStops(originCoord, destinationCoord, category, effectiveMilesFor(currentMode), currentMode);
     },
     [
       fetchAndSetStops,
@@ -422,6 +435,8 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
 
   const handleReset = useCallback(() => {
     detourRequestRef.current += 1;
+    detourAbortControllerRef.current?.abort();
+    stopSuggestControllerRef.current?.abort();
     if (originMarkerRef.current) {
       originMarkerRef.current.remove();
       originMarkerRef.current = null;
@@ -432,6 +447,7 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
     setNearbyStops([]);
     setSelectedStops([]);
     setStopLoading(false);
+    setStopError(null);
     setStopCategory(null);
     setDetourResult(null);
     setShowingDetour(false);
@@ -607,13 +623,59 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
 
         if (cancelled) return;
 
-        await applyShortestRouteToMap(
+        const fetchedStops = await applyShortestRouteToMap(
           shortest,
           originCoord,
           destinationCoord,
           sharedState.category,
           mode,
         );
+
+        if (cancelled || sharedState.via.length === 0 || fetchedStops.length === 0) return;
+
+        // Match via coordinates to fetched stops (threshold ~10 m)
+        const THRESHOLD = 0.0001;
+        const toRestore = sharedState.via
+          .map((v) =>
+            fetchedStops.find(
+              (s) =>
+                Math.abs(s.coordinates[0] - v[0]) < THRESHOLD &&
+                Math.abs(s.coordinates[1] - v[1]) < THRESHOLD,
+            ),
+          )
+          .filter((s): s is StopSuggestion => s !== undefined);
+
+        if (toRestore.length === 0) return;
+
+        const sorted = sortByRoutePosition(toRestore, shortest.route.geometry.coordinates);
+        setSelectedStops(sorted);
+
+        detourRequestRef.current += 1;
+        const reqId = detourRequestRef.current;
+        detourAbortControllerRef.current?.abort();
+        detourAbortControllerRef.current = new AbortController();
+        const detourSignal = detourAbortControllerRef.current.signal;
+        setDetourLoading(true);
+
+        try {
+          const viaData = await getRoute(
+            destinationCoord[0], destinationCoord[1], effectiveMilesFor(mode),
+            originCoord[0], originCoord[1],
+            sorted.map((s) => s.coordinates),
+            mode,
+            detourSignal,
+          );
+          if (cancelled || detourRequestRef.current !== reqId) return;
+          const detour = toRouteCheckResult(viaData);
+          setDetourResult(detour);
+          applyDetourToMap(detour, toRouteCheckResult(shortest));
+          fitRouteBounds(detour.route.geometry.coordinates);
+        } catch (err) {
+          if (err instanceof Error && err.name === "AbortError") return;
+          // detour restoration failed — shortest route stays shown
+        } finally {
+          if (!cancelled && detourRequestRef.current === reqId) setDetourLoading(false);
+        }
       } catch {
         // If restoration fails, leave the best partial state rather than forcing a reset.
       } finally {
@@ -626,8 +688,10 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
     };
   }, [
     applyShortestRouteToMap,
+    applyDetourToMap,
     checkRoute,
     config,
+    fitRouteBounds,
     mode,
     placeOriginMarker,
   ]);
@@ -644,7 +708,7 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
       origin,
       destination,
       category: stopCategory,
-      detour: selectedStops.length > 0,
+      via: selectedStops.map((s) => s.coordinates),
       mode,
     });
   }, [restoreReady, origin, destination, stopCategory, selectedStops, mode]);
@@ -780,6 +844,9 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
 
       detourRequestRef.current += 1;
       const reqId = detourRequestRef.current;
+      detourAbortControllerRef.current?.abort();
+      detourAbortControllerRef.current = new AbortController();
+      const detourSignal = detourAbortControllerRef.current.signal;
       setShowingDetour(false);
       setDetourLoading(true);
       setDetourResult(null);
@@ -792,13 +859,15 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
           origin[0], origin[1],
           newSelected.map((s) => s.coordinates),
           mode,
+          detourSignal,
         );
         if (detourRequestRef.current !== reqId) return;
         const detour = toRouteCheckResult(data);
         setDetourResult(detour);
         applyDetourToMap(detour, result);
         fitRouteBounds(detour.route.geometry.coordinates);
-      } catch {
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") return;
         // Keep selection visible; loading clears below
       } finally {
         if (detourRequestRef.current === reqId) setDetourLoading(false);
@@ -886,6 +955,9 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
           setSelectedStops(sorted);
           detourRequestRef.current += 1;
           const reqId = detourRequestRef.current;
+          detourAbortControllerRef.current?.abort();
+          detourAbortControllerRef.current = new AbortController();
+          const detourSignal = detourAbortControllerRef.current.signal;
           setDetourLoading(true);
 
           try {
@@ -894,6 +966,7 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
               origin[0], origin[1],
               sorted.map((s) => s.coordinates),
               newMode,
+              detourSignal,
             );
             if (detourRequestRef.current !== reqId) return;
             const directResult = toRouteCheckResult(data);
@@ -901,7 +974,8 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
             setDetourResult(detour);
             applyDetourToMap(detour, directResult);
             fitRouteBounds(detour.route.geometry.coordinates);
-          } catch {
+          } catch (err) {
+            if (err instanceof Error && err.name === "AbortError") return;
             if (detourRequestRef.current === reqId) setSelectedStops([]);
           } finally {
             if (detourRequestRef.current === reqId) setDetourLoading(false);
@@ -986,9 +1060,9 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
         <ModeToggle mode={mode} onChange={handleModeChange} />
         {!showVerdictPanel && (
           <div className="sidebar-intro">
-            <h2>Explore Santa Fe on foot</h2>
+            <h2>Explore Santa Fe {mode === "walk" ? "on foot" : "by car"}</h2>
             <p>
-              Plan a walk and discover stops worth a detour — historic sites,
+              Plan a {mode === "walk" ? "walk" : "drive"} and discover stops worth a detour — historic sites,
               galleries, landmarks, and scenic overlooks along your route.
             </p>
             <p className="sidebar-intro__cta">
@@ -1008,11 +1082,13 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
             nearbyStops={nearbyStops}
             selectedStops={selectedStops}
             stopLoading={stopLoading}
+            stopError={stopError}
             onSelectStop={handleSelectStop}
             stopCategory={stopCategory}
             onCategoryChange={handleCategoryChange}
             detourLoading={detourLoading}
             showingDetour={showingDetour}
+            mode={mode}
             shortestRoute={
               showingDetour && result
                 ? {

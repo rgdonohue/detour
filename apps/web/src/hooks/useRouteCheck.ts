@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { getRoute, type RouteResponse, type TravelMode } from "../lib/api";
 
 export interface RouteCheckResult {
@@ -12,6 +12,7 @@ export function useRouteCheck() {
   const [result, setResult] = useState<RouteCheckResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const controllerRef = useRef<AbortController | null>(null);
 
   const checkRoute = useCallback(async (
     destLon: number,
@@ -21,11 +22,15 @@ export function useRouteCheck() {
     originLat?: number,
     mode?: TravelMode,
   ) => {
+    controllerRef.current?.abort();
+    controllerRef.current = new AbortController();
+    const signal = controllerRef.current.signal;
+
     setError(null);
     setIsLoading(true);
 
     try {
-      const data = await getRoute(destLon, destLat, miles, originLon, originLat, undefined, mode);
+      const data = await getRoute(destLon, destLat, miles, originLon, originLat, undefined, mode, signal);
       setResult({
         route: data.route,
         distance_miles: data.distance_miles,
@@ -34,19 +39,23 @@ export function useRouteCheck() {
       });
       return data;
     } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") throw err;
       const message =
         err instanceof Error ? err.message : "Route check unavailable, try again";
       setError(message);
       setResult(null);
       throw err;
     } finally {
-      setIsLoading(false);
+      if (!signal.aborted) setIsLoading(false);
     }
   }, []);
 
   const clearResult = useCallback(() => {
+    controllerRef.current?.abort();
+    controllerRef.current = null;
     setResult(null);
     setError(null);
+    setIsLoading(false);
   }, []);
 
   return {

@@ -5,7 +5,7 @@ export interface ShareableRouteState {
   origin: [number, number] | null;
   destination: [number, number] | null;
   category: PlaceCategory | null;
-  detour: boolean;
+  via: [number, number][];
   mode: TravelMode;
 }
 
@@ -43,13 +43,21 @@ function encodeCoord(coord: [number, number]): string {
   return `${formatCoord(coord[0])},${formatCoord(coord[1])}`;
 }
 
+function parseVia(value: string | null): [number, number][] {
+  if (!value) return [];
+  return value
+    .split(";")
+    .map((pair) => parseCoord(pair))
+    .filter((c): c is [number, number] => c !== null);
+}
+
 export function parseShareableRouteState(): ShareableRouteState {
   const params = new URLSearchParams(window.location.search);
   return {
     origin: parseCoord(params.get("origin")),
     destination: parseCoord(params.get("destination")),
     category: normalizeCategory(params.get("category")),
-    detour: params.get("detour") === "1",
+    via: parseVia(params.get("via")),
     mode: params.get("mode") === "drive" ? "drive" : "walk",
   };
 }
@@ -62,8 +70,10 @@ export function replaceShareableRouteState(state: ShareableRouteState): void {
 
   const hasResolvedRoute = state.destination !== null;
   if (hasResolvedRoute && state.category) params.set("category", state.category);
-  if (hasResolvedRoute && state.detour) params.set("detour", "1");
-  if (state.mode === "drive") params.set("mode", "drive");
+  if (hasResolvedRoute && state.via.length > 0) {
+    params.set("via", state.via.map(encodeCoord).join(";"));
+  }
+  params.set("mode", state.mode);
 
   const nextSearch = params.toString();
   const nextUrl = nextSearch.length > 0

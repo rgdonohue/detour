@@ -69,23 +69,44 @@ const ROUTE_TIMEOUT_MS = 15000; // ORS can be slow; fail after 15s
 
 async function fetchWithTimeout(
   url: string,
-  timeoutMs: number = FETCH_TIMEOUT_MS
+  timeoutMs: number = FETCH_TIMEOUT_MS,
+  externalSignal?: AbortSignal,
 ): Promise<Response> {
   const ctrl = new AbortController();
   const id = setTimeout(() => ctrl.abort(), timeoutMs);
+
+  let onAbort: (() => void) | null = null;
+  if (externalSignal) {
+    if (externalSignal.aborted) {
+      clearTimeout(id);
+      throw new DOMException("Aborted", "AbortError");
+    }
+    onAbort = () => ctrl.abort();
+    externalSignal.addEventListener("abort", onAbort, { once: true });
+  }
+
+  const cleanup = () => {
+    clearTimeout(id);
+    if (onAbort && externalSignal) {
+      externalSignal.removeEventListener("abort", onAbort);
+    }
+  };
+
   try {
     const res = await fetch(url, { signal: ctrl.signal });
-    clearTimeout(id);
+    cleanup();
     return res;
   } catch (e) {
-    clearTimeout(id);
-    if (e instanceof Error) {
-      if (e.name === "AbortError") {
-        throw new Error("Route check timed out. The service may be busy.");
-      }
-      if (e.message === "Failed to fetch" || e.message.includes("NetworkError")) {
-        throw new Error("Unable to connect. Check your internet connection.");
-      }
+    cleanup();
+    if (e instanceof Error && e.name === "AbortError") {
+      if (externalSignal?.aborted) throw e; // user-initiated abort — propagate as-is
+      throw new Error("Route check timed out. The service may be busy.");
+    }
+    if (
+      e instanceof Error &&
+      (e.message === "Failed to fetch" || e.message.includes("NetworkError"))
+    ) {
+      throw new Error("Unable to connect. Check your internet connection.");
     }
     throw e;
   }
@@ -101,13 +122,14 @@ export async function getArea(
   originLon?: number,
   originLat?: number,
   mode?: TravelMode,
+  signal?: AbortSignal,
 ): Promise<AreaResponse> {
   const params = new URLSearchParams();
   if (originLon !== undefined && originLat !== undefined) {
     params.set("origin", `${originLon},${originLat}`);
   }
   if (mode && mode !== "drive") params.set("mode", mode);
-  const res = await fetch(`${API_BASE}/area?${params}`);
+  const res = await fetch(`${API_BASE}/area?${params}`, { signal });
   if (!res.ok) throw new Error(`Area failed: ${res.status}`);
   return res.json();
 }
@@ -120,6 +142,7 @@ export async function suggestStop(
   category: string | null,
   miles?: number,
   mode?: TravelMode,
+  signal?: AbortSignal,
 ): Promise<SuggestStopResponse> {
   const params = new URLSearchParams({
     origin: `${originLon},${originLat}`,
@@ -131,6 +154,7 @@ export async function suggestStop(
   const res = await fetchWithTimeout(
     `${API_BASE}/suggest-stop?${params}`,
     ROUTE_TIMEOUT_MS,
+    signal,
   );
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
@@ -153,6 +177,7 @@ export async function getRoute(
   originLat?: number,
   viaCoords?: [number, number][],
   mode?: TravelMode,
+  signal?: AbortSignal,
 ): Promise<RouteResponse> {
   const params = new URLSearchParams({ to: `${destLon},${destLat}` });
   if (miles !== undefined) params.set("miles", String(miles));
@@ -165,7 +190,8 @@ export async function getRoute(
   if (mode && mode !== "drive") params.set("mode", mode);
   const res = await fetchWithTimeout(
     `${API_BASE}/route?${params}`,
-    ROUTE_TIMEOUT_MS
+    ROUTE_TIMEOUT_MS,
+    signal,
   );
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));

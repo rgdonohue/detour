@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getArea, type AreaResponse, type TravelMode } from "../lib/api";
 
 export function useServiceArea(
@@ -7,41 +7,31 @@ export function useServiceArea(
   mode?: TravelMode,
 ) {
   const [polygon, setPolygon] = useState<AreaResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const controllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
+    controllerRef.current?.abort();
+    controllerRef.current = null;
+
     if (originLon === undefined || originLat === undefined) {
-      setPolygon(null);
-      setIsLoading(false);
       return;
     }
 
-    let cancelled = false;
-    setError(null);
-    setIsLoading(true);
+    controllerRef.current = new AbortController();
+    const { signal } = controllerRef.current;
 
-    getArea(originLon, originLat, mode)
-      .then((data) => {
-        if (!cancelled) {
-          setPolygon(data);
-          setError(null);
-        }
-      })
+    getArea(originLon, originLat, mode, signal)
+      .then((data) => setPolygon(data))
       .catch((err) => {
-        if (!cancelled) {
-          setPolygon(null);
-          setError(err instanceof Error ? err.message : "Failed to load area");
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoading(false);
+        if (err instanceof Error && err.name === "AbortError") return;
+        setPolygon(null);
       });
 
     return () => {
-      cancelled = true;
+      controllerRef.current?.abort();
     };
   }, [originLon, originLat, mode]);
 
-  return { polygon, isLoading, error };
+  const hasOrigin = originLon !== undefined && originLat !== undefined;
+  return { polygon: hasOrigin ? polygon : null };
 }
