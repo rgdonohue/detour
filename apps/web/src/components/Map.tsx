@@ -873,7 +873,7 @@ export function Map({ resetRef, mode, onModeChange }: MapProps) {
             className={`ring-toggle${showRings ? " ring-toggle--active" : ""}`}
             onClick={() => setShowRings((v) => !v)}
           >
-            <span className="ring-toggle__label">Show distance</span>
+            <span className="ring-toggle__label">Distance</span>
             <span className="ring-toggle__switch" aria-hidden="true" />
           </button>
           <div className={`ring-legend__rows${showRings ? " ring-legend__rows--open" : ""}`}>
