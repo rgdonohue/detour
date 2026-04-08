@@ -34,14 +34,14 @@ The current build uses Santa Fe as its first case study because it is compact, v
 3. The app draws the **shortest route** (driving or walking)
 4. The panel shows route distance and estimated travel time
 5. The app surfaces **up to five nearby stops** along the route from the current category filter — all plotted on the map
-6. Click any stop in the list or on the map to reroute through it; the panel shows the added distance and time
+6. Click any number of stops in the list or on the map to build a multi-stop itinerary; the panel shows the added distance and time versus the direct route
 7. Switch back to the shortest route at any time
 8. The full state can be shared through the URL
 
 ### Controls
 
 - **Drive / Walk toggle** — switches the routing profile and redraws the distance rings for the relevant scale (drive: 1 / 3 / 5 mi · walk: 0.5 / 1 / 2 mi)
-- **Stop categories:** Any, History, Art, Scenic, Food, Culture
+- **Stop categories:** Any, History, Art, Scenic, Culture, Landmark
 - **Reset:** clear the route and start over from the header
 
 ---
@@ -179,13 +179,13 @@ Current shared state includes:
 - origin
 - destination
 - stop category
-- whether the via-stop route is active
-- travel mode (omitted when drive, the default)
+- selected stop coordinates (via waypoints)
+- travel mode (walk is the default)
 
 Example:
 
 ```text
-?origin=-105.9394,35.687&destination=-105.944,35.683&category=art&detour=1&mode=walk
+?origin=-105.9394,35.687&destination=-105.944,35.683&category=art&mode=walk
 ```
 
 ---
@@ -213,12 +213,7 @@ Detour is a **Santa Fe-first prototype** for a broader idea:
 
 > routing that balances efficiency with cultural, scenic, or local meaning.
 
-Possible future directions:
-
-- expanding beyond Santa Fe
-- replacing the static dataset with richer live place data
-- improving stop-ranking logic
-- testing this interaction pattern with real users in mapping / cartography / civic-tech contexts
+The current product direction targets the Santa Fe tour guide and tourism industry. See [docs/UX_DIRECTION.md](docs/UX_DIRECTION.md) for personas, feature brainstorm, and roadmap options.
 
 ---
 
