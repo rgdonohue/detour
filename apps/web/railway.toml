@@ -1,4 +1,4 @@
-# Railway config for the-long-way-home frontend (monorepo: root dir apps/web)
+# Railway config for detour frontend (monorepo: root dir apps/web)
 [build]
 buildCommand = "npm install && npm run build"
 

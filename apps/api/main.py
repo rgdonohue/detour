@@ -1,4 +1,4 @@
-"""FastAPI backend — API shield and cache layer for The Long Way Home."""
+"""FastAPI backend — API shield and cache layer for Detour."""
 import logging
 from datetime import datetime, timezone
 
@@ -24,7 +24,7 @@ if not logger.handlers:
     logger.addHandler(_h)
     logger.propagate = False
 
-app = FastAPI(title="The Long Way Home API")
+app = FastAPI(title="Detour API")
 
 app.add_middleware(
     CORSMiddleware,
@@ -41,7 +41,7 @@ app.add_middleware(
 @app.get("/")
 def root():
     """Health check."""
-    return {"status": "ok", "service": "the-long-way-home-api"}
+    return {"status": "ok", "service": "detour-api"}
 
 
 @app.get("/api/config")

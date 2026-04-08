@@ -1,4 +1,4 @@
-# Next Steps Plan: The Long Way Home
+# Next Steps Plan: Detour
 
 ## Why this doc still exists
 
@@ -26,7 +26,7 @@ Already completed relative to earlier planning:
 
 ## Product direction
 
-The "Long Way Home" idea still makes sense as a possible next step:
+The detour-suggestion idea still makes sense as a possible next step:
 
 > Start with the shortest route, then offer one more meaningful route based on a small amount of local context.
 
@@ -49,4 +49,4 @@ That remains a future product expansion, not current app behavior.
 
 ## Practical guidance
 
-Use the current app as the foundation. Do not rewrite the repo just to explore the "Long Way Home" direction. The existing frontend, backend, and ORS integration are already enough to support an incremental next iteration.
+Use the current app as the foundation. The existing frontend, backend, and ORS integration are already enough to support an incremental next iteration.

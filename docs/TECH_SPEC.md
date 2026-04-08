@@ -1,4 +1,4 @@
-# Technical Specification - The Long Way Home
+# Technical Specification - Detour
 
 ## 1. System Overview
 

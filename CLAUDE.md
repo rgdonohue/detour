@@ -1,4 +1,4 @@
-# CLAUDE.md - The Long Way Home
+# CLAUDE.md - Detour
 
 ## What this project is
 

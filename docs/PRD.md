@@ -1,8 +1,8 @@
-# PRD - The Long Way Home
+# PRD - Detour
 
 ## Summary
 
-The Long Way Home is a Santa Fe routing tool for checking whether a destination is within a selected driving-distance threshold from a user-chosen origin.
+Detour is a Santa Fe routing tool for checking whether a destination is within a selected driving-distance threshold from a user-chosen origin.
 
 The current product flow is map-first:
 

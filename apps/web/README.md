@@ -1,6 +1,6 @@
 # Web App
 
-Frontend package for The Long Way Home.
+Frontend package for Detour.
 
 ## Scripts
 

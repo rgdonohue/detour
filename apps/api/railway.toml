@@ -1,4 +1,4 @@
-# Railway config for the-long-way-home API (monorepo: root dir apps/api)
+# Railway config for detour API (monorepo: root dir apps/api)
 [build]
 buildCommand = "pip install -r requirements.txt"
 

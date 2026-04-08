@@ -1,8 +1,8 @@
-# The Long Way Home
+# Detour
 
-**A place-aware routing experiment built first in Santa Fe.**
+**routes shaped by place — a routing experiment built first in Santa Fe.**
 
-Long Way Home is a web mapping prototype that finds the **shortest route** between two points — by foot or by car — and then asks: *is there somewhere worth stopping along the way?*
+Detour is a web mapping prototype that finds the **shortest route** between two points — by foot or by car — and then asks: *is there somewhere worth stopping along the way?*
 
 Set an origin and a destination by clicking the map. The app draws the baseline route, reports distance and time, and surfaces up to five nearby stops from a curated local place dataset. Pick one and the map reroutes through it, showing exactly how many extra miles and minutes the detour adds.
 
@@ -14,7 +14,7 @@ This project started as a simple network-distance map. It has since evolved into
 
 Most routing interfaces optimize for speed, distance, or convenience. That makes sense, but it leaves out another dimension of movement: **meaning**.
 
-Long Way Home explores a different interaction pattern:
+Detour explores a different interaction pattern:
 
 - show the shortest route
 - surface nearby stops with local value
@@ -209,7 +209,7 @@ See [docs/DEPLOY.md](docs/DEPLOY.md) for deployment details.
 
 ## Project direction
 
-Long Way Home is a **Santa Fe-first prototype** for a broader idea:
+Detour is a **Santa Fe-first prototype** for a broader idea:
 
 > routing that balances efficiency with cultural, scenic, or local meaning.
 

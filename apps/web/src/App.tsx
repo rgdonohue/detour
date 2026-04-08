@@ -12,8 +12,8 @@ function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>The Long Way Home</h1>
-        <p>Place-aware routing in Santa Fe</p>
+        <h1>Detour</h1>
+        <p>routes shaped by place</p>
         <button
           type="button"
           className="header-reset-btn"

@@ -1,4 +1,4 @@
-# Agent Prompt Kit - The Long Way Home
+# Agent Prompt Kit - Detour
 
 ## How to use this file
 
