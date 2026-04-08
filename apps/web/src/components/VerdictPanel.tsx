@@ -5,9 +5,9 @@ import { StopCategorySelector } from "./StopCategorySelector";
 const CATEGORY_LABELS: Record<PlaceCategory, string> = {
   history: "Historic",
   art: "Art",
-  food: "Food & Drink",
   scenic: "Scenic",
   culture: "Culture",
+  civic: "Landmark",
 };
 
 // ORS returns category_group strings — map to display labels
@@ -176,8 +176,8 @@ export function VerdictPanel({
         </div>
       )}
 
-      {/* Stop suggestions list (shortest mode only) */}
-      {!showingDetour && !isLoading && (
+      {/* Stop suggestions list */}
+      {!isLoading && (
         <div className="verdict-panel__stop">
           <p className="verdict-panel__stop-label">Along the way</p>
           {onCategoryChange && (
@@ -188,24 +188,27 @@ export function VerdictPanel({
           ) : nearbyStops.length > 0 ? (
             <>
               <ul className="stop-list">
-                {nearbyStops.map((stop) => (
-                  <li key={stop.name}>
-                    <button
-                      type="button"
-                      className="stop-list__item"
-                      onClick={() => onSelectStop?.(stop)}
-                      disabled={detourLoading}
-                    >
-                      <span className="stop-list__item-header">
-                        <span className="stop-list__item-name">{stop.name}</span>
-                        <span className="stop-list__item-badge">{getCategoryLabel(stop.category)}</span>
-                      </span>
-                      {stop.description && (
-                        <span className="stop-list__item-desc">{stop.description}</span>
-                      )}
-                    </button>
-                  </li>
-                ))}
+                {nearbyStops.map((stop) => {
+                  const isSelected = stop.name === selectedStop?.name;
+                  return (
+                    <li key={stop.name}>
+                      <button
+                        type="button"
+                        className={`stop-list__item${isSelected ? " stop-list__item--selected" : ""}`}
+                        onClick={() => onSelectStop?.(stop)}
+                        disabled={detourLoading && !isSelected}
+                      >
+                        <span className="stop-list__item-header">
+                          <span className="stop-list__item-name">{stop.name}</span>
+                          <span className="stop-list__item-badge">{getCategoryLabel(stop.category)}</span>
+                        </span>
+                        {stop.description && (
+                          <span className="stop-list__item-desc">{stop.description}</span>
+                        )}
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
               {detourLoading && (
                 <p className="verdict-panel__loading">Computing route…</p>

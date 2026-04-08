@@ -12,9 +12,9 @@ export interface ShareableRouteState {
 const CATEGORY_VALUES: readonly PlaceCategory[] = [
   "history",
   "art",
-  "food",
   "scenic",
   "culture",
+  "civic",
 ];
 
 function parseCoord(value: string | null): [number, number] | null {

@@ -95,18 +95,6 @@ export const SANTA_FE_PLACES: Place[] = [
     description: "Oldest shrine to Our Lady of Guadalupe in the US",
   },
   {
-    name: "Cafe Pasqual's",
-    category: "food",
-    coordinates: [-105.9394, 35.6867],
-    description: "Iconic Santa Fe restaurant with creative New Mexican cuisine since 1979",
-  },
-  {
-    name: "The Shed",
-    category: "food",
-    coordinates: [-105.9383, 35.6877],
-    description: "Beloved local spot for red and green chile since 1953",
-  },
-  {
     name: "Santa Fe River Trail",
     category: "scenic",
     coordinates: [-105.9437, 35.6836],
@@ -129,11 +117,5 @@ export const SANTA_FE_PLACES: Place[] = [
     category: "history",
     coordinates: [-105.9372, 35.6806],
     description: "Adobe structure dating to around 1646, among the oldest in the US",
-  },
-  {
-    name: "Kakawa Chocolate House",
-    category: "food",
-    coordinates: [-105.9374, 35.6857],
-    description: "Historic chocolate elixirs and handcrafted truffles",
   },
 ];
