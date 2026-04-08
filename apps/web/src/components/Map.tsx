@@ -94,6 +94,7 @@ export function Map({ resetRef, mode, onModeChange }: MapProps) {
   const [showingDetour, setShowingDetour] = useState(false);
   const [detourLoading, setDetourLoading] = useState(false);
   const [restoreReady, setRestoreReady] = useState(false);
+  const [showRings, setShowRings] = useState(false);
 
   const { polygon } = useServiceArea(origin?.[0], origin?.[1], mode);
   const { checkRoute, clearResult, result, isLoading, error } = useRouteCheck();
@@ -405,6 +406,7 @@ export function Map({ resetRef, mode, onModeChange }: MapProps) {
     setDetourResult(null);
     setShowingDetour(false);
     setDetourLoading(false);
+    setShowRings(false);
     clearResult();
     setClickPhase("set-origin");
     const map = mapRef.current;
@@ -494,7 +496,7 @@ export function Map({ resetRef, mode, onModeChange }: MapProps) {
         id: lineLayerId,
         type: "line",
         source: sourceId,
-        layout: { "line-join": "round", "line-cap": "round" },
+        layout: { "line-join": "round", "line-cap": "round", "visibility": "none" },
         paint: {
           "line-color": "#C45B28",
           "line-opacity": 0.7,
@@ -519,6 +521,22 @@ export function Map({ resetRef, mode, onModeChange }: MapProps) {
       map.on("load", run);
     }
   }, [polygon]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const lineLayerId = "service-area-line";
+    const apply = () => {
+      if (map.getLayer(lineLayerId)) {
+        map.setLayoutProperty(lineLayerId, "visibility", showRings ? "visible" : "none");
+      }
+    };
+    if (map.isStyleLoaded()) {
+      apply();
+    } else {
+      map.once("load", apply);
+    }
+  }, [showRings]);
 
   useEffect(() => {
     if (!config || !mapRef.current || restoreStartedRef.current) return;
@@ -848,7 +866,14 @@ export function Map({ resetRef, mode, onModeChange }: MapProps) {
       {statusText && <div className="map-status">{statusText}</div>}
       {origin && (
         <div className="ring-legend">
-          {ringMilesFor(mode).map((mi, i) => (
+          <button
+            type="button"
+            className={`ring-legend__toggle${showRings ? " ring-legend__toggle--active" : ""}`}
+            onClick={() => setShowRings((v) => !v)}
+          >
+            Rings
+          </button>
+          {showRings && ringMilesFor(mode).map((mi, i) => (
             <div key={mi} className="ring-legend__row">
               <svg width="22" height="8" aria-hidden="true">
                 <line
