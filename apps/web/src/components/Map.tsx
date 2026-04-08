@@ -868,10 +868,11 @@ export function Map({ resetRef, mode, onModeChange }: MapProps) {
         <div className="ring-legend">
           <button
             type="button"
-            className={`ring-legend__toggle${showRings ? " ring-legend__toggle--active" : ""}`}
+            className={`ring-toggle${showRings ? " ring-toggle--active" : ""}`}
             onClick={() => setShowRings((v) => !v)}
           >
-            Rings
+            <span className="ring-toggle__label">Show distance</span>
+            <span className="ring-toggle__switch" aria-hidden="true" />
           </button>
           {showRings && ringMilesFor(mode).map((mi, i) => (
             <div key={mi} className="ring-legend__row">

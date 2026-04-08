@@ -652,42 +652,68 @@ h1, h2, h3 {
   position: absolute;
   bottom: 28px;
   left: 12px;
-  padding: 5px 8px;
+  padding: 6px 10px;
   background: rgba(250, 247, 242, 0.92);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border: 1px solid rgba(44, 24, 16, 0.1);
-  border-radius: 4px;
+  border-radius: 6px;
   z-index: 5;
-  pointer-events: none;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 5px;
 }
 
-.ring-legend__toggle {
-  display: block;
-  width: 100%;
-  padding: 0;
-  font-size: 0.5625rem;
-  font-family: "DM Sans", system-ui, sans-serif;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--text-secondary);
+/* Toggle row: label + slider */
+.ring-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   background: transparent;
   border: none;
+  padding: 0;
   cursor: pointer;
-  text-align: left;
-  transition: color 0.15s;
 }
 
-.ring-legend__toggle:hover {
+.ring-toggle__label {
+  font-size: 0.6875rem;
+  font-family: "DM Sans", system-ui, sans-serif;
+  font-weight: 500;
   color: var(--dark-brown);
+  white-space: nowrap;
 }
 
-.ring-legend__toggle--active {
-  color: var(--terracotta);
+/* Oval slider track */
+.ring-toggle__switch {
+  position: relative;
+  width: 34px;
+  height: 20px;
+  background: rgba(44, 24, 16, 0.18);
+  border-radius: 999px;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+/* Slider knob */
+.ring-toggle__switch::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
+  transition: transform 0.2s;
+}
+
+.ring-toggle--active .ring-toggle__switch {
+  background: var(--terracotta);
+}
+
+.ring-toggle--active .ring-toggle__switch::after {
+  transform: translateX(14px);
 }
 
 .ring-legend__row {
