@@ -46,7 +46,7 @@ interface VerdictPanelProps {
   error?: string | null;
   onReset: () => void;
   nearbyStops?: StopSuggestion[];
-  selectedStop?: StopSuggestion | null;
+  selectedStops?: StopSuggestion[];
   stopLoading?: boolean;
   onSelectStop?: ((stop: StopSuggestion) => void) | null;
   detourLoading?: boolean;
@@ -76,7 +76,7 @@ export function VerdictPanel({
   error = null,
   onReset,
   nearbyStops = [],
-  selectedStop = null,
+  selectedStops = [],
   stopLoading = false,
   onSelectStop = null,
   detourLoading = false,
@@ -134,9 +134,13 @@ export function VerdictPanel({
       aria-label="Route check result"
       aria-live="polite"
     >
-      {showingDetour && selectedStop ? (
+      {showingDetour && selectedStops.length > 0 ? (
         <div className="verdict-panel__detour-header">
-          <h3 className="verdict-panel__title">Via {selectedStop.name}</h3>
+          <h3 className="verdict-panel__title">
+            {selectedStops.length === 1
+              ? `Via ${selectedStops[0].name}`
+              : `Via ${selectedStops.length} stops`}
+          </h3>
           {!isLoading && <span className={statusClass}>{statusText}</span>}
         </div>
       ) : (
@@ -189,7 +193,8 @@ export function VerdictPanel({
             <>
               <ul className="stop-list">
                 {nearbyStops.map((stop) => {
-                  const isSelected = stop.name === selectedStop?.name;
+                  const orderIdx = selectedStops.findIndex((s) => s.name === stop.name);
+                  const isSelected = orderIdx >= 0;
                   return (
                     <li key={stop.name}>
                       <button
@@ -200,7 +205,12 @@ export function VerdictPanel({
                       >
                         <span className="stop-list__item-header">
                           <span className="stop-list__item-name">{stop.name}</span>
-                          <span className="stop-list__item-badge">{getCategoryLabel(stop.category)}</span>
+                          <span className="stop-list__item-badges">
+                            {isSelected && (
+                              <span className="stop-list__item-order">{orderIdx + 1}</span>
+                            )}
+                            <span className="stop-list__item-badge">{getCategoryLabel(stop.category)}</span>
+                          </span>
                         </span>
                         {stop.description && (
                           <span className="stop-list__item-desc">{stop.description}</span>
@@ -231,7 +241,7 @@ export function VerdictPanel({
             className="verdict-panel__btn-secondary"
             onClick={onBackToShortest}
           >
-            Shortest route
+            {selectedStops.length > 1 ? `Clear stops (${selectedStops.length})` : "Shortest route"}
           </button>
         )}
         <button

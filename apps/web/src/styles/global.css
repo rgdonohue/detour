@@ -557,6 +557,27 @@ h1, h2, h3 {
   background: var(--stop-selected);
   transform: scale(1.25);
   box-shadow: 0 1px 6px rgba(107, 71, 168, 0.4);
+  position: relative;
+}
+
+.stop-marker--selected::after {
+  content: attr(data-order);
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--stop-selected);
+  color: white;
+  font-family: "DM Sans", system-ui, sans-serif;
+  font-size: 8px;
+  font-weight: 700;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  line-height: 14px;
+  text-align: center;
+  display: block;
+  border: 1.5px solid white;
 }
 
 /* MapLibre popup used for stop name tooltip */
@@ -626,8 +647,30 @@ h1, h2, h3 {
 .stop-list__item-header {
   display: flex;
   align-items: baseline;
-  flex-wrap: wrap;
+  justify-content: space-between;
   gap: 0.375rem;
+}
+
+.stop-list__item-badges {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.stop-list__item-order {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--stop-selected);
+  color: white;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  line-height: 1;
+  font-family: "DM Sans", system-ui, sans-serif;
 }
 
 .stop-list__item-name {

@@ -2,7 +2,7 @@
 import logging
 from datetime import datetime, timezone
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from cache import (
@@ -124,12 +124,12 @@ def _parse_to_param(to: str) -> tuple[float, float]:
 async def get_route(
     to: str,
     origin: str | None = None,
-    via: str | None = None,
+    via: list[str] | None = Query(default=None),
     miles: float | None = None,
     mode: str = "drive",
 ):
     """Returns shortest route from origin to destination and within-limit verdict.
-    Accepts optional origin=lon,lat, via=lon,lat, and mode=drive|walk. Defaults to configured origin."""
+    Accepts optional origin=lon,lat, repeated via=lon,lat waypoints, and mode=drive|walk."""
     limit_miles = miles if miles is not None else settings.DEFAULT_RANGE_MILES
     try:
         dest_lon, dest_lat = _parse_to_param(to)
@@ -145,10 +145,11 @@ async def get_route(
         origin_lon = settings.ORIGIN_LON
         origin_lat = settings.ORIGIN_LAT
 
-    via_lon, via_lat = None, None
-    if via:
+    via_coords: list[tuple[float, float]] = []
+    for entry in (via or []):
         try:
-            via_lon, via_lat = _parse_to_param(via)
+            lon, lat = _parse_to_param(entry)
+            via_coords.append((lon, lat))
         except ValueError as e:
             raise HTTPException(status_code=400, detail=f"Invalid via: {e}")
 
@@ -160,8 +161,7 @@ async def get_route(
             dest_lon,
             dest_lat,
             limit_miles=limit_miles,
-            via_lon=via_lon,
-            via_lat=via_lat,
+            via_coords=via_coords or None,
             profile=profile,
         )
     except ValueError as e:

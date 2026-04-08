@@ -25,7 +25,7 @@ export function useRouteCheck() {
     setIsLoading(true);
 
     try {
-      const data = await getRoute(destLon, destLat, miles, originLon, originLat, undefined, undefined, mode);
+      const data = await getRoute(destLon, destLat, miles, originLon, originLat, undefined, mode);
       setResult({
         route: data.route,
         distance_miles: data.distance_miles,

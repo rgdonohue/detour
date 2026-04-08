@@ -38,15 +38,16 @@ def _mock_isodistance_geojson(lon: float, lat: float, distances_meters: list[flo
 
 def _mock_route_response(
     origin_lon: float, origin_lat: float, dest_lon: float, dest_lat: float, limit_miles: float,
-    via_lon: float | None = None, via_lat: float | None = None,
+    via_coords: list[tuple[float, float]] | None = None,
 ) -> dict:
     """Return mock route response when ORS API key is missing."""
-    coords = [[origin_lon, origin_lat]]
-    if via_lon is not None and via_lat is not None:
-        coords.append([via_lon, via_lat])
+    coords: list[list[float]] = [[origin_lon, origin_lat]]
+    for lon, lat in (via_coords or []):
+        coords.append([lon, lat])
     coords.append([dest_lon, dest_lat])
 
-    distance_meters = 4500.0 if via_lon is not None else 3000.0
+    n_via = len(via_coords) if via_coords else 0
+    distance_meters = 3000.0 + 1500.0 * n_via
     distance_miles = distance_meters / 1609.344
     limit_meters = miles_to_meters(limit_miles)
     within_limit = distance_meters <= limit_meters
@@ -62,7 +63,7 @@ def _mock_route_response(
         },
         "distance_meters": distance_meters,
         "distance_miles": round(distance_miles, 2),
-        "duration_seconds": 450 if via_lon is not None else 300,
+        "duration_seconds": 300 + 150 * n_via,
         "within_limit": within_limit,
         "limit_miles": limit_miles,
     }
@@ -131,26 +132,25 @@ async def get_shortest_route(
     dest_lon: float,
     dest_lat: float,
     limit_miles: float = 3.0,
-    via_lon: float | None = None,
-    via_lat: float | None = None,
+    via_coords: list[tuple[float, float]] | None = None,
     profile: str = "driving-car",
 ) -> dict[str, Any]:
     """
     Fetch shortest-distance route from ORS directions.
-    Supports an optional via waypoint between origin and destination.
+    Supports zero or more via waypoints between origin and destination.
     Returns route GeoJSON, distance_meters, distance_miles, duration_seconds, within_limit.
     CRITICAL: uses preference="shortest" — not fastest.
     """
     coordinates: list[list[float]] = [[origin_lon, origin_lat]]
-    if via_lon is not None and via_lat is not None:
-        coordinates.append([via_lon, via_lat])
+    for lon, lat in (via_coords or []):
+        coordinates.append([lon, lat])
     coordinates.append([dest_lon, dest_lat])
 
     if not settings.ORS_API_KEY:
         logger.warning("ORS_API_KEY not set — returning mock route response")
         return _mock_route_response(
             origin_lon, origin_lat, dest_lon, dest_lat, limit_miles,
-            via_lon, via_lat,
+            via_coords,
         )
 
     async with httpx.AsyncClient() as client:
@@ -168,7 +168,7 @@ async def get_shortest_route(
             logger.warning("ORS API key invalid — returning mock route response")
             return _mock_route_response(
                 origin_lon, origin_lat, dest_lon, dest_lat, limit_miles,
-                via_lon, via_lat,
+                via_coords,
             )
         if resp.status_code == 429:
             raise ValueError("ORS rate limited")

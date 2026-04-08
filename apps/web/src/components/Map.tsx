@@ -54,6 +54,27 @@ interface MapProps {
   onModeChange: (mode: TravelMode) => void;
 }
 
+/** Index of the closest route vertex to a coordinate (squared Euclidean — fine for sorting). */
+function closestRouteIndex(coord: [number, number], routeCoords: number[][]): number {
+  let bestIdx = 0, bestDist = Infinity;
+  for (let i = 0; i < routeCoords.length; i++) {
+    const dx = coord[0] - routeCoords[i][0];
+    const dy = coord[1] - routeCoords[i][1];
+    const d = dx * dx + dy * dy;
+    if (d < bestDist) { bestDist = d; bestIdx = i; }
+  }
+  return bestIdx;
+}
+
+/** Sort stops by their position along a route, preserving geographic order. */
+function sortByRoutePosition(stops: StopSuggestion[], routeCoords: number[][]): StopSuggestion[] {
+  return [...stops].sort(
+    (a, b) =>
+      closestRouteIndex(a.coordinates, routeCoords) -
+      closestRouteIndex(b.coordinates, routeCoords),
+  );
+}
+
 function toRouteCheckResult(
   data: Pick<
     RouteResponse,
@@ -79,7 +100,7 @@ export function Map({ resetRef, mode, onModeChange }: MapProps) {
   const stopMarkersRef = useRef<{ stop: StopSuggestion; el: HTMLElement; marker: maplibregl.Marker }[]>([]);
   const stopPopupRef = useRef<maplibregl.Popup | null>(null);
   const isCheckingRef = useRef(false);
-  const detourStopKeyRef = useRef<string | null>(null);
+  const detourRequestRef = useRef<number>(0);
   const onStopClickRef = useRef<(stop: StopSuggestion) => void>(() => {});
 
   const [config, setConfig] = useState<Config | null>(null);
@@ -87,7 +108,7 @@ export function Map({ resetRef, mode, onModeChange }: MapProps) {
   const [origin, setOrigin] = useState<[number, number] | null>(null);
   const [destination, setDestination] = useState<[number, number] | null>(null);
   const [nearbyStops, setNearbyStops] = useState<StopSuggestion[]>([]);
-  const [selectedStop, setSelectedStop] = useState<StopSuggestion | null>(null);
+  const [selectedStops, setSelectedStops] = useState<StopSuggestion[]>([]);
   const [stopLoading, setStopLoading] = useState(false);
   const [stopCategory, setStopCategory] = useState<PlaceCategory | null>(null);
   const [detourResult, setDetourResult] = useState<RouteCheckResult | null>(null);
@@ -328,7 +349,7 @@ export function Map({ resetRef, mode, onModeChange }: MapProps) {
     ): Promise<void> => {
       setDestination(destinationCoord);
       setShowingDetour(false);
-      setSelectedStop(null);
+      setSelectedStops([]);
       setDetourResult(null);
       setDetourLoading(false);
       removeAltRoute();
@@ -395,7 +416,7 @@ export function Map({ resetRef, mode, onModeChange }: MapProps) {
   }, [clearStopMarkers, removeAltRoute]);
 
   const handleReset = useCallback(() => {
-    detourStopKeyRef.current = null;
+    detourRequestRef.current += 1;
     if (originMarkerRef.current) {
       originMarkerRef.current.remove();
       originMarkerRef.current = null;
@@ -404,7 +425,7 @@ export function Map({ resetRef, mode, onModeChange }: MapProps) {
     setOrigin(null);
     setDestination(null);
     setNearbyStops([]);
-    setSelectedStop(null);
+    setSelectedStops([]);
     setStopLoading(false);
     setStopCategory(null);
     setDetourResult(null);
@@ -617,17 +638,17 @@ export function Map({ resetRef, mode, onModeChange }: MapProps) {
       origin,
       destination,
       category: stopCategory,
-      detour: showingDetour,
+      detour: selectedStops.length > 0,
       mode,
     });
-  }, [restoreReady, origin, destination, stopCategory, showingDetour, mode]);
+  }, [restoreReady, origin, destination, stopCategory, selectedStops, mode]);
 
   useEffect(() => {
     removeRouteAndDestination();
     clearResult();
-    detourStopKeyRef.current = null;
+    detourRequestRef.current += 1;
     setNearbyStops([]);
-    setSelectedStop(null);
+    setSelectedStops([]);
     setStopLoading(false);
     setDestination(null);
     setDetourResult(null);
@@ -671,11 +692,11 @@ export function Map({ resetRef, mode, onModeChange }: MapProps) {
         if (isCheckingRef.current || isLoading) return;
 
         if (clickPhase === "set-origin" || clickPhase === "route-shown") {
-          detourStopKeyRef.current = null;
+          detourRequestRef.current += 1;
           removeRouteAndDestination();
           clearResult();
           setNearbyStops([]);
-          setSelectedStop(null);
+          setSelectedStops([]);
           setStopLoading(false);
           setDestination(null);
           setDetourResult(null);
@@ -691,7 +712,7 @@ export function Map({ resetRef, mode, onModeChange }: MapProps) {
         if (clickPhase !== "set-destination" || !origin) return;
 
         isCheckingRef.current = true;
-        detourStopKeyRef.current = null;
+        detourRequestRef.current += 1;
 
         checkRoute(lng, lat, effectiveMilesFor(mode), origin[0], origin[1], mode)
           .then((data) =>
@@ -734,51 +755,50 @@ export function Map({ resetRef, mode, onModeChange }: MapProps) {
   const handleSelectStop = useCallback(
     async (stop: StopSuggestion) => {
       if (!origin || !destination || !result) return;
-      if (selectedStop?.name === stop.name) {
+
+      const isSelected = selectedStops.some((s) => s.name === stop.name);
+      const newSelected = isSelected
+        ? selectedStops.filter((s) => s.name !== stop.name)
+        : sortByRoutePosition([...selectedStops, stop], result.route.geometry.coordinates);
+
+      setSelectedStops(newSelected);
+
+      if (newSelected.length === 0) {
         setShowingDetour(false);
-        setSelectedStop(null);
+        setDetourResult(null);
+        setDetourLoading(false);
         renderRouteLine(result.route, result.within_limit ? ROUTE_COLOR : ROUTE_OUTSIDE_COLOR, "route", "route-line", 0.9, 4);
         removeAltRoute();
         return;
       }
 
-      const stopKey = stop.name;
-      detourStopKeyRef.current = stopKey;
-      setSelectedStop(stop);
+      detourRequestRef.current += 1;
+      const reqId = detourRequestRef.current;
       setShowingDetour(false);
       setDetourLoading(true);
       setDetourResult(null);
       removeAltRoute();
-      // Restore shortest route line while computing detour
-      renderRouteLine(
-        result.route,
-        result.within_limit ? ROUTE_COLOR : ROUTE_OUTSIDE_COLOR,
-        "route",
-        "route-line",
-        0.9,
-        4,
-      );
+      renderRouteLine(result.route, result.within_limit ? ROUTE_COLOR : ROUTE_OUTSIDE_COLOR, "route", "route-line", 0.9, 4);
 
       try {
-        const [viaLon, viaLat] = stop.coordinates;
         const data = await getRoute(
           destination[0], destination[1], effectiveMilesFor(mode),
           origin[0], origin[1],
-          viaLon, viaLat,
+          newSelected.map((s) => s.coordinates),
           mode,
         );
-        if (detourStopKeyRef.current !== stopKey) return;
+        if (detourRequestRef.current !== reqId) return;
         const detour = toRouteCheckResult(data);
         setDetourResult(detour);
         applyDetourToMap(detour, result);
         fitRouteBounds(detour.route.geometry.coordinates);
       } catch {
-        if (detourStopKeyRef.current === stopKey) setSelectedStop(null);
+        // Keep selection visible; loading clears below
       } finally {
-        if (detourStopKeyRef.current === stopKey) setDetourLoading(false);
+        if (detourRequestRef.current === reqId) setDetourLoading(false);
       }
     },
-    [applyDetourToMap, destination, fitRouteBounds, mode, origin, removeAltRoute, renderRouteLine, result, selectedStop],
+    [applyDetourToMap, destination, fitRouteBounds, mode, origin, removeAltRoute, renderRouteLine, result, selectedStops],
   );
 
   // Keep ref current so map marker click handlers always call the latest version
@@ -786,17 +806,19 @@ export function Map({ resetRef, mode, onModeChange }: MapProps) {
     onStopClickRef.current = handleSelectStop;
   }, [handleSelectStop]);
 
-  // Sync selected-stop purple affordance on map markers
+  // Sync selected-stop purple affordance and order badges on map markers
   useEffect(() => {
     stopMarkersRef.current.forEach(({ stop, el }) => {
-      el.classList.toggle("stop-marker--selected", stop.name === selectedStop?.name);
+      const idx = selectedStops.findIndex((s) => s.name === stop.name);
+      el.classList.toggle("stop-marker--selected", idx >= 0);
+      el.dataset.order = idx >= 0 ? String(idx + 1) : "";
     });
-  }, [selectedStop]);
+  }, [selectedStops]);
 
   const handleBackToShortest = useCallback(() => {
     if (!result) return;
     setShowingDetour(false);
-    setSelectedStop(null);
+    setSelectedStops([]);
     renderRouteLine(
       result.route,
       result.within_limit ? ROUTE_COLOR : ROUTE_OUTSIDE_COLOR,
@@ -812,9 +834,9 @@ export function Map({ resetRef, mode, onModeChange }: MapProps) {
     (cat: PlaceCategory | null) => {
       setStopCategory(cat);
       setShowingDetour(false);
-      setSelectedStop(null);
+      setSelectedStops([]);
       removeAltRoute();
-      detourStopKeyRef.current = null;
+      detourRequestRef.current += 1;
       setDetourResult(null);
       setDetourLoading(false);
 
@@ -833,8 +855,8 @@ export function Map({ resetRef, mode, onModeChange }: MapProps) {
 
       // Re-route in place with the new mode
       isCheckingRef.current = true;
-      detourStopKeyRef.current = null;
-      setSelectedStop(null);
+      detourRequestRef.current += 1;
+      setSelectedStops([]);
       setShowingDetour(false);
       setDetourResult(null);
       setDetourLoading(false);
@@ -936,7 +958,7 @@ export function Map({ resetRef, mode, onModeChange }: MapProps) {
             error={error}
             onReset={handleReset}
             nearbyStops={nearbyStops}
-            selectedStop={selectedStop}
+            selectedStops={selectedStops}
             stopLoading={stopLoading}
             onSelectStop={handleSelectStop}
             stopCategory={stopCategory}

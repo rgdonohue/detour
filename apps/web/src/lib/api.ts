@@ -151,8 +151,7 @@ export async function getRoute(
   miles?: number,
   originLon?: number,
   originLat?: number,
-  viaLon?: number,
-  viaLat?: number,
+  viaCoords?: [number, number][],
   mode?: TravelMode,
 ): Promise<RouteResponse> {
   const params = new URLSearchParams({ to: `${destLon},${destLat}` });
@@ -160,8 +159,8 @@ export async function getRoute(
   if (originLon !== undefined && originLat !== undefined) {
     params.set("origin", `${originLon},${originLat}`);
   }
-  if (viaLon !== undefined && viaLat !== undefined) {
-    params.set("via", `${viaLon},${viaLat}`);
+  for (const [lon, lat] of (viaCoords ?? [])) {
+    params.append("via", `${lon},${lat}`);
   }
   if (mode && mode !== "drive") params.set("mode", mode);
   const res = await fetchWithTimeout(
