@@ -50,7 +50,7 @@ export function parseShareableRouteState(): ShareableRouteState {
     destination: parseCoord(params.get("destination")),
     category: normalizeCategory(params.get("category")),
     detour: params.get("detour") === "1",
-    mode: params.get("mode") === "walk" ? "walk" : "drive",
+    mode: params.get("mode") === "drive" ? "drive" : "walk",
   };
 }
 
@@ -63,7 +63,7 @@ export function replaceShareableRouteState(state: ShareableRouteState): void {
   const hasResolvedRoute = state.destination !== null;
   if (hasResolvedRoute && state.category) params.set("category", state.category);
   if (hasResolvedRoute && state.detour) params.set("detour", "1");
-  if (state.mode === "walk") params.set("mode", "walk");
+  if (state.mode === "drive") params.set("mode", "drive");
 
   const nextSearch = params.toString();
   const nextUrl = nextSearch.length > 0
