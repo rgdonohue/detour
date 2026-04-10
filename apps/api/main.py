@@ -14,6 +14,7 @@ from conversion import miles_to_meters
 from ors_client import get_isodistance, get_shortest_route
 from poi_client import get_pois_along_route
 from stop_selector import ORS_ELIGIBLE_CATEGORIES, select_from_ors, select_from_static
+from tour_loader import get_tour, list_tours
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -242,3 +243,18 @@ async def suggest_stop(
     )
 
     return {"stops": stops, "fallback": fallback}
+
+
+@app.get("/api/tours")
+def get_tours():
+    """List all available pre-built tours (summary only — no geometry)."""
+    return {"tours": list_tours()}
+
+
+@app.get("/api/tours/{slug}")
+def get_tour_by_slug(slug: str):
+    """Return a full tour definition by slug, including route geometry and stops."""
+    tour = get_tour(slug)
+    if tour is None:
+        raise HTTPException(status_code=404, detail=f"Tour not found: {slug}")
+    return tour

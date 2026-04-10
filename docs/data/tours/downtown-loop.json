@@ -1,0 +1,177 @@
+{
+  "slug": "downtown-loop",
+  "name": "Downtown Santa Fe Loop",
+  "tagline": "Loretto Chapel to Canyon Road and back through the Plaza",
+  "description": "A 3-mile walking loop through the historic heart of Santa Fe. Pass the state capitol, one of the oldest churches in the US, the Canyon Road gallery corridor, the Cathedral Basilica, and return through the Plaza — over 400 years of history in a single walk.",
+  "mode": "walk",
+  "distance_miles": 3.2,
+  "duration_minutes": 90,
+  "route": {
+    "type": "Feature",
+    "geometry": {
+      "type": "LineString",
+      "coordinates": [
+        [-105.937498, 35.685044],
+        [-105.937603, 35.684912],
+        [-105.937734, 35.684929],
+        [-105.937724, 35.684814],
+        [-105.938768, 35.684963],
+        [-105.940096, 35.685095],
+        [-105.940306, 35.684469],
+        [-105.939393, 35.684123],
+        [-105.937991, 35.683701],
+        [-105.937401, 35.683515],
+        [-105.937709, 35.683477],
+        [-105.937971, 35.683426],
+        [-105.938159, 35.682917],
+        [-105.938085, 35.682217],
+        [-105.938305, 35.682213],
+        [-105.939109, 35.682268],
+        [-105.939119, 35.682196],
+        [-105.938299, 35.682018],
+        [-105.938169, 35.681449],
+        [-105.937997, 35.681449],
+        [-105.937877, 35.681021],
+        [-105.937668, 35.680054],
+        [-105.937453, 35.679111],
+        [-105.936414, 35.67907],
+        [-105.936223, 35.679365],
+        [-105.936053, 35.679933],
+        [-105.936033, 35.680231],
+        [-105.935709, 35.681114],
+        [-105.935052, 35.681034],
+        [-105.934429, 35.681495],
+        [-105.934, 35.682699],
+        [-105.933986, 35.683081],
+        [-105.932851, 35.682957],
+        [-105.932159, 35.682845],
+        [-105.93155, 35.682654],
+        [-105.929169, 35.6819],
+        [-105.926359, 35.680877],
+        [-105.92629, 35.681034],
+        [-105.931481, 35.682687],
+        [-105.93108, 35.6847],
+        [-105.930789, 35.685869],
+        [-105.932353, 35.686308],
+        [-105.932541, 35.685692],
+        [-105.933799, 35.686008],
+        [-105.935519, 35.686457],
+        [-105.935798, 35.686877],
+        [-105.936206, 35.686965],
+        [-105.93668, 35.687064],
+        [-105.936601, 35.687266],
+        [-105.937883, 35.687558],
+        [-105.938108, 35.687563],
+        [-105.938064, 35.687657],
+        [-105.93871, 35.687804],
+        [-105.939681, 35.688084],
+        [-105.940814, 35.688325],
+        [-105.940927, 35.687644],
+        [-105.93957, 35.687328],
+        [-105.940217, 35.685167],
+        [-105.940228, 35.685169]
+      ]
+    },
+    "properties": {}
+  },
+  "stops": [
+    {
+      "order": 1,
+      "name": "Loretto Chapel",
+      "coordinates": [-105.93754, 35.68562],
+      "category": "history",
+      "description": "Famous for its mysterious 'miraculous staircase' — a circular, freestanding spiral with no visible central support, built around 1878. The Gothic Revival chapel was constructed for the Sisters of Loretto by Archbishop Lamy's builder. Now a museum and wedding venue, it marks the beginning of this walk along Old Santa Fe Trail."
+    },
+    {
+      "order": 2,
+      "name": "Barrio de Analco",
+      "coordinates": [-105.9379485, 35.6836817],
+      "category": "culture",
+      "description": "One of the oldest continuously inhabited neighborhoods in the United States, settled in the early 1600s by Mexican and Tlaxcalan Indian servants who worked for the Spanish colonial government. The Barrio's adobe homes along De Vargas Street reflect over four centuries of New Mexican vernacular architecture and community life."
+    },
+    {
+      "order": 3,
+      "name": "San Miguel Chapel",
+      "coordinates": [-105.93756879, 35.68345568],
+      "category": "culture",
+      "description": "Often cited as the oldest church still in use in the United States, with origins around 1610. The current structure was rebuilt after the Pueblo Revolt of 1680 and reconstructed again in 1710. Thick adobe walls and hand-hewn wood beam ceilings survive from that era. The chapel houses a 780-pound bell cast in 1356."
+    },
+    {
+      "order": 4,
+      "name": "New Mexico State Capitol",
+      "coordinates": [-105.93909235, 35.68311705],
+      "category": "civic",
+      "description": "The only circular state capitol building in the United States, known as the Roundhouse. Completed in 1966 and designed to echo the Zia Pueblo sun symbol, it sits at the center of state government surrounded by sculpture gardens and native plantings. The rotunda interior features New Mexican art from across the state's history."
+    },
+    {
+      "order": 5,
+      "name": "Water Bearers",
+      "coordinates": [-105.9383399, 35.6818158],
+      "category": "history",
+      "description": "A bronze monument on the Capitol grounds honoring the acequia tradition of community water management that sustained Santa Fe since Spanish colonial settlement. The figure carries water in traditional vessels — a reminder that this city was built in a high-desert environment where water was managed communally and carefully."
+    },
+    {
+      "order": 6,
+      "name": "Gerald Peters Gallery",
+      "coordinates": [-105.9340007, 35.6817418],
+      "category": "art",
+      "description": "One of the foremost galleries on Canyon Road, representing American and European art from the 19th century through the contemporary era. The gallery occupies a sprawling adobe compound with interior courtyards — an exemplar of the Canyon Road model where art and architecture merge into a single experience."
+    },
+    {
+      "order": 7,
+      "name": "El Zaguan",
+      "coordinates": [-105.9300183, 35.6822575],
+      "category": "history",
+      "description": "A 19th-century hacienda on Canyon Road now owned by the Historic Santa Fe Foundation. The property is notable for its Victorian-era garden — one of the oldest in Santa Fe — with peony beds and fruit trees planted in the late 1800s. The garden is open to the public and offers a quiet respite from the gallery corridor."
+    },
+    {
+      "order": 8,
+      "name": "Cathedral Basilica of Saint Francis",
+      "coordinates": [-105.93614391, 35.68648866],
+      "category": "culture",
+      "description": "The architectural centerpiece of Santa Fe's skyline, built by Archbishop Jean-Baptiste Lamy between 1869 and 1886 in Romanesque Revival style. Lamy imported French stonemasons to construct it, and the cathedral replaced an earlier adobe church on the site. The Lady Chapel inside preserves a 1625 wooden statue of the Virgin Mary that survived the Pueblo Revolt."
+    },
+    {
+      "order": 9,
+      "name": "Museum of Contemporary Native Arts",
+      "coordinates": [-105.93704520, 35.68705711],
+      "category": "history",
+      "description": "Operated by the Institute of American Indian Arts, this museum on the south side of the Plaza presents contemporary work by Native artists from across the Americas. The building — a former Federal Building and Post Office — places Indigenous contemporary art at the literal center of Santa Fe's civic and cultural life."
+    },
+    {
+      "order": 10,
+      "name": "Santa Fe Plaza",
+      "coordinates": [-105.93853097, 35.68742063],
+      "category": "culture",
+      "description": "The historic heart of Santa Fe since its founding as a Spanish colonial capital around 1610. The Plaza has served as a marketplace, military parade ground, and civic gathering space for over 400 years. The Palace of the Governors lines its north edge; portals along the perimeter shelter Native American jewelry and pottery vendors year-round."
+    },
+    {
+      "order": 11,
+      "name": "Palace of the Governors",
+      "coordinates": [-105.93815262, 35.68791375],
+      "category": "history",
+      "description": "The oldest continuously occupied public building in the United States, constructed around 1610 as the seat of Spanish colonial government in New Mexico. Occupied successively by Spanish governors, Pueblo leaders during the Revolt, Mexican governors, and US territorial governors, it is now a museum of New Mexican history. Its long portal is one of the most recognized images of Santa Fe."
+    },
+    {
+      "order": 12,
+      "name": "New Mexico Museum of Art",
+      "coordinates": [-105.93913660, 35.68824710],
+      "category": "art",
+      "description": "Founded in 1917, this Pueblo Revival landmark anchors the northwest corner of the Plaza. Designed by I.H. and William Rapp, the building established the architectural vocabulary that would define Santa Fe's civic aesthetic for a century. The collection centers on New Mexican and Southwestern art, with a particular depth in early 20th-century regional painters."
+    },
+    {
+      "order": 13,
+      "name": "Georgia O'Keeffe Museum",
+      "coordinates": [-105.94117807, 35.68917733],
+      "category": "art",
+      "description": "The world's largest collection of Georgia O'Keeffe's work, celebrating the artist who made New Mexico's high desert landscape her lifelong subject. O'Keeffe moved permanently to New Mexico in 1949 and lived there until her death in 1986. The museum — founded in 1997 in a historic adobe complex — holds over 3,000 of her works."
+    },
+    {
+      "order": 14,
+      "name": "The Lensic",
+      "coordinates": [-105.94106468, 35.68789992],
+      "category": "culture",
+      "description": "A 1931 Moorish-Spanish Renaissance movie palace restored in 2001 as Santa Fe's premier performing arts venue. The Lensic Performing Arts Center now hosts opera, jazz, film, and theater — a cultural anchor on West San Francisco Street, one block from the Plaza. The restored interior retains its original ornate detailing and 820-seat balcony."
+    }
+  ]
+}

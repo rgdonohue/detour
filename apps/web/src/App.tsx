@@ -1,10 +1,13 @@
 import { useRef, useState } from "react";
+import { Routes, Route, Link } from "react-router-dom";
 import { Map } from "./components/Map";
 import { ModeToggle } from "./components/ModeToggle";
+import { TourGallery } from "./pages/TourGallery";
+import { TourViewer } from "./pages/TourViewer";
 import { parseShareableRouteState } from "./lib/urlState";
 import type { TravelMode } from "./lib/api";
 
-function App() {
+function BuilderPage() {
   const [mode, setMode] = useState<TravelMode>(() =>
     parseShareableRouteState().mode,
   );
@@ -16,6 +19,9 @@ function App() {
       <header className="app-header">
         <h1>Santa Fe Detour</h1>
         <p>routes shaped by place</p>
+        <Link to="/tours" className="header-reset-btn" style={{ textDecoration: "none" }}>
+          Tours
+        </Link>
         <button
           type="button"
           className="header-reset-btn"
@@ -36,6 +42,16 @@ function App() {
         />
       </div>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<BuilderPage />} />
+      <Route path="/tours" element={<TourGallery />} />
+      <Route path="/tours/:slug" element={<TourViewer />} />
+    </Routes>
   );
 }
 
