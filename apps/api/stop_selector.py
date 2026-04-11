@@ -13,7 +13,7 @@ _MAX_DISTANCE_MILES = 1.0
 _EARTH_RADIUS_MILES = 3958.8
 _VALID_CATEGORIES: frozenset = frozenset({"history", "art", "scenic", "culture", "civic"})
 
-_CSV_PATH = Path(__file__).parent.parent.parent / "docs" / "data" / "query_capable_pois_frontend_seed.csv"
+_CSV_PATH = Path(__file__).parent / "data" / "query_capable_pois_frontend_seed.csv"
 
 
 def _load_places() -> list[dict]:
