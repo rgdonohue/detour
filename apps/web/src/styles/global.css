@@ -870,6 +870,13 @@ h1, h2, h3 {
   line-height: 1.3;
 }
 
+.explore-poi-detail__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
 .explore-poi-detail__badge {
   display: inline-block;
   padding: 0.15rem 0.5rem;
@@ -879,6 +886,32 @@ h1, h2, h3 {
   letter-spacing: 0.05em;
   border-radius: 2px;
   color: white;
+}
+
+.explore-poi-detail__subcategory {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+.explore-poi-detail__description {
+  font-size: 0.875rem;
+  color: var(--text-primary, var(--dark-brown));
+  line-height: 1.55;
+  margin: 0;
+}
+
+.explore-poi-detail__basis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.explore-poi-detail__basis-tag {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  background: rgba(44, 24, 16, 0.06);
+  border-radius: 2px;
+  padding: 0.1rem 0.4rem;
 }
 
 .explore-poi-detail__actions {

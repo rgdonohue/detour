@@ -122,6 +122,10 @@ function ExplorePanel({
   );
 }
 
+function toTitleCase(s: string): string {
+  return s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 function PoiDetail({
   poi,
   onClose,
@@ -136,6 +140,16 @@ function PoiDetail({
     ? `https://en.wikipedia.org/wiki/${encodeURIComponent(poi.wikipedia_title)}`
     : null;
 
+  // Use card description for high/medium confidence; fall back to map description for low
+  const descriptionText =
+    poi.confidence !== "low"
+      ? (poi.description_card ?? poi.description_map)
+      : (poi.description_map ?? poi.description_card);
+
+  const basisTags = poi.basis
+    ? poi.basis.split("|").map((t) => t.trim()).filter(Boolean)
+    : [];
+
   return (
     <div className="explore-poi-detail">
       <button
@@ -147,12 +161,31 @@ function PoiDetail({
         ← All places
       </button>
       <strong className="explore-poi-detail__name">{poi.name}</strong>
-      <span
-        className="explore-poi-detail__badge"
-        style={{ background: color }}
-      >
-        {label}
-      </span>
+      <div className="explore-poi-detail__meta">
+        <span
+          className="explore-poi-detail__badge"
+          style={{ background: color }}
+        >
+          {label}
+        </span>
+        {poi.subcategory && (
+          <span className="explore-poi-detail__subcategory">
+            {toTitleCase(poi.subcategory)}
+          </span>
+        )}
+      </div>
+      {descriptionText && (
+        <p className="explore-poi-detail__description">{descriptionText}</p>
+      )}
+      {basisTags.length > 0 && (
+        <div className="explore-poi-detail__basis">
+          {basisTags.map((tag) => (
+            <span key={tag} className="explore-poi-detail__basis-tag">
+              {toTitleCase(tag)}
+            </span>
+          ))}
+        </div>
+      )}
       <div className="explore-poi-detail__actions">
         {wikiUrl && (
           <a

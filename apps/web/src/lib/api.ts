@@ -74,6 +74,11 @@ export interface PoiFeature {
     category: string;
     wikipedia_title: string | null;
     quality_score: number;
+    description_map: string | null;
+    description_card: string | null;
+    subcategory: string | null;
+    confidence: string | null;
+    basis: string | null;
   };
 }
 

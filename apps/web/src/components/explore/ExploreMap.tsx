@@ -28,6 +28,11 @@ export interface SelectedPoi {
   category: string;
   wikipedia_title: string | null;
   coordinates: [number, number];
+  description_map: string | null;
+  description_card: string | null;
+  subcategory: string | null;
+  confidence: string | null;
+  basis: string | null;
 }
 
 interface ExploreMapProps {
@@ -159,8 +164,11 @@ export function ExploreMap({ activeCategories, onPoiSelect }: ExploreMapProps) {
                 if (!e.features?.length) return;
                 map.getCanvas().style.cursor = "pointer";
                 const coords = (e.features[0].geometry as GeoJSON.Point).coordinates as [number, number];
-                const { name } = e.features[0].properties as { name: string };
-                hoverPopup.setLngLat(coords).setHTML(name).addTo(map);
+                const props = e.features[0].properties as { name: string; description_map: string | null };
+                const html = props.description_map
+                  ? `<strong>${props.name}</strong><br><span style="font-size:0.85em;opacity:0.85">${props.description_map}</span>`
+                  : props.name;
+                hoverPopup.setLngLat(coords).setHTML(html).addTo(map);
               };
 
               const handleMouseLeave = () => {
@@ -173,12 +181,27 @@ export function ExploreMap({ activeCategories, onPoiSelect }: ExploreMapProps) {
                 if (!e.features?.length) return;
                 const f = e.features[0];
                 const coords = (f.geometry as GeoJSON.Point).coordinates as [number, number];
-                const { name, category: cat, wikipedia_title } = f.properties as {
+                const props = f.properties as {
                   name: string;
                   category: string;
                   wikipedia_title: string | null;
+                  description_map: string | null;
+                  description_card: string | null;
+                  subcategory: string | null;
+                  confidence: string | null;
+                  basis: string | null;
                 };
-                onPoiSelect({ name, category: cat, wikipedia_title, coordinates: coords });
+                onPoiSelect({
+                  name: props.name,
+                  category: props.category,
+                  wikipedia_title: props.wikipedia_title,
+                  coordinates: coords,
+                  description_map: props.description_map,
+                  description_card: props.description_card,
+                  subcategory: props.subcategory,
+                  confidence: props.confidence,
+                  basis: props.basis,
+                });
               };
 
               for (const layerId of [POI_CIRCLE_LAYER_ID, POI_LABEL_LAYER_ID]) {

@@ -59,6 +59,11 @@ def _load_places() -> list[dict]:
                 "drive_affinity_hint": drive_affinity,
                 "quality_score": quality_score,
                 "display_priority": display_priority,
+                "description_map": (row.get("description_map_v1") or "").strip() or None,
+                "description_card": (row.get("description_card_v1") or "").strip() or None,
+                "subcategory": (row.get("description_subcategory_v1") or "").strip() or None,
+                "confidence": (row.get("description_confidence_v1") or "").strip() or None,
+                "basis": (row.get("description_basis_v1") or "").strip() or None,
             })
     logger.info("Loaded %d places from seed CSV", len(places))
     return places
@@ -88,6 +93,11 @@ def get_all_places_geojson(category: str | None = None) -> dict:
                     "category": p["category"],
                     "wikipedia_title": p["wikipedia_title"],
                     "quality_score": p["quality_score"],
+                    "description_map": p["description_map"],
+                    "description_card": p["description_card"],
+                    "subcategory": p["subcategory"],
+                    "confidence": p["confidence"],
+                    "basis": p["basis"],
                 },
             }
             for p in pois
