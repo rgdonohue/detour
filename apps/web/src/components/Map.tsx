@@ -1091,10 +1091,6 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
     if (modeChangeRef) modeChangeRef.current = handleModeChange;
   }, [modeChangeRef, handleModeChange]);
 
-  if (!config) {
-    return <div className="map-loading">Loading map…</div>;
-  }
-
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const stop of nearbyStops) {
@@ -1103,9 +1099,14 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
     return counts;
   }, [nearbyStops]);
 
-  const filteredStops = nearbyStops.filter((s) =>
-    activeCategories.has(s.category as PlaceCategory)
+  const filteredStops = useMemo(
+    () => nearbyStops.filter((s) => activeCategories.has(s.category as PlaceCategory)),
+    [nearbyStops, activeCategories],
   );
+
+  if (!config) {
+    return <div className="map-loading">Loading map…</div>;
+  }
 
   const activeResult = showingDetour && detourResult ? detourResult : result;
   const showVerdictPanel = isLoading || result !== null || error !== null;
