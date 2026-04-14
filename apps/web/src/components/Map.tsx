@@ -120,6 +120,7 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
   const [detourLoading, setDetourLoading] = useState(false);
   const [restoreReady, setRestoreReady] = useState(false);
   const [showRings, setShowRings] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
   const showRingsRef = useRef(false);
   showRingsRef.current = showRings;
 
@@ -504,6 +505,8 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
     }
 
     mapRef.current = map;
+
+    map.once("idle", () => setMapReady(true));
 
     return () => {
       if (originMarkerRef.current) {
@@ -1022,9 +1025,9 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
   const showVerdictPanel = isLoading || result !== null || error !== null;
   const statusText =
     !showVerdictPanel && clickPhase === "set-origin"
-      ? "Click map to set origin"
+      ? "Click to set your starting point"
       : !showVerdictPanel && clickPhase === "set-destination"
-        ? "Click map to set destination"
+        ? "Now click your destination"
         : null;
 
   return (
@@ -1032,7 +1035,7 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
       className={`map-wrapper ${isLoading ? "map-wrapper--loading" : ""}`}
     >
       <div ref={containerRef} className="map-container" />
-      {statusText && <div className="map-status">{statusText}</div>}
+      {statusText && mapReady && <div className="map-hint" key={statusText}>{statusText}</div>}
       {origin && (
         <div className="ring-legend">
           <button
@@ -1071,9 +1074,6 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
             <p>
               Plan a {mode === "walk" ? "walk" : "drive"} and discover stops worth a detour — historic sites,
               galleries, landmarks, and scenic overlooks along your route.
-            </p>
-            <p className="sidebar-intro__cta">
-              Click the map to set your starting point.
             </p>
           </div>
         )}
