@@ -59,6 +59,13 @@ export interface StopSuggestion {
   route_position?: number;
   source: "ors" | "static";
   source_category_note: "approximate" | null;
+  // Rich description fields (present for static-source stops)
+  description_map?: string | null;
+  description_card?: string | null;
+  subcategory?: string | null;
+  confidence?: string | null;
+  basis?: string | null;
+  wikipedia_title?: string | null;
 }
 
 export interface SuggestStopResponse {

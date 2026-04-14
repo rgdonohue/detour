@@ -205,6 +205,13 @@ def select_from_static(
                 "route_position": route_pos,
                 "source": "static",
                 "source_category_note": None,
+                # Rich description fields (already loaded in _load_places)
+                "description_map": place.get("description_map"),
+                "description_card": place.get("description_card"),
+                "subcategory": place.get("subcategory"),
+                "confidence": place.get("confidence"),
+                "basis": place.get("basis"),
+                "wikipedia_title": place.get("wikipedia_title"),
             })
 
     results.sort(key=lambda x: x["route_position"])

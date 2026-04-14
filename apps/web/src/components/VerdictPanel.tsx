@@ -316,9 +316,20 @@ export function VerdictPanel({
                             <span className="stop-list__item-badge">{getCategoryLabel(stop.category)}</span>
                           </span>
                         </span>
-                        {stop.description && (
-                          <span className="stop-list__item-desc">{stop.description}</span>
+                        {stop.subcategory && (
+                          <span className="stop-list__item-subcategory">
+                            {stop.subcategory.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                          </span>
                         )}
+                        {(() => {
+                          const desc =
+                            stop.confidence !== "low"
+                              ? (stop.description_card ?? stop.description_map ?? stop.description)
+                              : (stop.description_map ?? stop.description_card ?? stop.description);
+                          return desc ? (
+                            <span className="stop-list__item-desc">{desc}</span>
+                          ) : null;
+                        })()}
                       </button>
                     </li>
                   );

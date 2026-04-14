@@ -1205,6 +1205,12 @@ h1, h2, h3 {
   flex-shrink: 0;
 }
 
+.stop-list__item-subcategory {
+  font-size: 0.6875rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
 .stop-list__item-desc {
   font-size: 0.75rem;
   color: var(--text-secondary);
