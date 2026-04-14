@@ -603,7 +603,7 @@ h1, h2, h3 {
   border-radius: 50%;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
   cursor: pointer;
-  transition: transform 0.12s, opacity 0.2s;
+  transition: transform 0.12s, opacity 0.2s, width 0.2s, height 0.2s;
 }
 
 .stop-marker:hover {
@@ -611,11 +611,33 @@ h1, h2, h3 {
 }
 
 
+/* Proximity tiers — applied when route is visible */
+.stop-marker[data-proximity="near"] {
+  width: 12px;
+  height: 12px;
+  opacity: 1;
+}
+
+.stop-marker[data-proximity="mid"] {
+  width: 10px;
+  height: 10px;
+  opacity: 0.65;
+}
+
+.stop-marker[data-proximity="far"] {
+  width: 8px;
+  height: 8px;
+  opacity: 0.4;
+}
+
 .stop-marker--selected {
   background: var(--stop-selected);
   transform: scale(1.25);
   box-shadow: 0 1px 6px rgba(107, 71, 168, 0.4);
   position: relative;
+  width: 12px;
+  height: 12px;
+  opacity: 1;
 }
 
 .stop-marker--selected::after {

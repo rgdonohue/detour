@@ -55,6 +55,19 @@ interface MapProps {
   onModeChange: (mode: TravelMode) => void;
 }
 
+/** Minimum distance in miles from a point to the nearest route vertex. */
+function minRouteDistanceMiles(coord: [number, number], routeCoords: number[][]): number {
+  let bestDist = Infinity;
+  for (let i = 0; i < routeCoords.length; i++) {
+    const dLon = (coord[0] - routeCoords[i][0]) * Math.cos(((coord[1] + routeCoords[i][1]) / 2) * Math.PI / 180);
+    const dLat = coord[1] - routeCoords[i][1];
+    const d = Math.sqrt(dLon * dLon + dLat * dLat);
+    if (d < bestDist) bestDist = d;
+  }
+  // Convert degrees to miles (1 degree latitude ≈ 69.0 miles)
+  return bestDist * 69.0;
+}
+
 /** Index of the closest route vertex to a coordinate (squared Euclidean — fine for sorting). */
 function closestRouteIndex(coord: [number, number], routeCoords: number[][]): number {
   let bestIdx = 0, bestDist = Infinity;
@@ -126,6 +139,8 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
 
   const { polygon } = useServiceArea(origin?.[0], origin?.[1], mode);
   const { checkRoute, clearResult, result, isLoading, error } = useRouteCheck();
+  const resultRef = useRef(result);
+  resultRef.current = result;
 
   useEffect(() => {
     let cancelled = false;
@@ -277,6 +292,12 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
         el.className = "stop-marker";
         const color = CATEGORY_COLORS[stop.category as PlaceCategory];
         if (color) el.style.setProperty("--stop-marker-color", color);
+
+        const routeCoords = resultRef.current?.route?.geometry?.coordinates;
+        if (routeCoords) {
+          const dist = minRouteDistanceMiles(stop.coordinates, routeCoords);
+          el.dataset.proximity = dist <= 0.1 ? "near" : dist <= 0.4 ? "mid" : "far";
+        }
 
         const marker = new maplibregl.Marker({ element: el })
           .setLngLat(stop.coordinates)
@@ -897,7 +918,21 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
       const isSelected = idx >= 0;
       el.classList.toggle("stop-marker--selected", isSelected);
       el.dataset.order = isSelected ? String(idx + 1) : "";
-      el.style.opacity = hasSelection && !isSelected ? "0.3" : "";
+
+      if (isSelected) {
+        el.style.opacity = "";
+        el.style.width = "";
+        el.style.height = "";
+      } else if (hasSelection) {
+        // Knock each proximity tier down one notch further
+        const tier = el.dataset.proximity;
+        el.style.opacity = tier === "near" ? "0.55" : tier === "mid" ? "0.35" : "0.2";
+      } else {
+        // No selection — let CSS proximity tiers handle it
+        el.style.opacity = "";
+        el.style.width = "";
+        el.style.height = "";
+      }
     });
   }, [selectedStops]);
 
