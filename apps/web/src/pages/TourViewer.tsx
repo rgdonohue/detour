@@ -1,6 +1,7 @@
 import { useEffect, useReducer, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { AppHeader } from "../components/AppHeader";
+import { AppFooter } from "../components/AppFooter";
 import { getTour } from "../lib/tourApi";
 import type { TourDefinition } from "../types/tour";
 import { TourMap } from "../components/tour/TourMap";
@@ -35,6 +36,7 @@ export function TourViewer() {
       <div className="app">
         <AppHeader />
         <div className="map-loading">Loading tour…</div>
+        <AppFooter />
       </div>
     );
   }
@@ -47,6 +49,7 @@ export function TourViewer() {
           {state.message}
           <Link to="/tours" style={{ marginLeft: "0.5rem" }}>Browse tours</Link>
         </div>
+        <AppFooter />
       </div>
     );
   }
@@ -70,6 +73,7 @@ export function TourViewer() {
           />
         </div>
       </div>
+      <AppFooter />
     </div>
   );
 }

@@ -46,11 +46,12 @@ export function AboutModal({ isOpen, onClose }: AboutModalProps) {
           <section className="about-modal__section">
             <h3>Vision</h3>
             <p>
-              Detour explores how interactive mapping can help people understand
-              space and place in Santa Fe through the lens of historical and
-              cultural geography. Rather than listing attractions, the map
-              surfaces locations that make the city more legible — its landscape,
-              its layers of history, and the patterns of everyday life.
+              Santa Fe is a layered city — Indigenous, Spanish colonial,
+              territorial, and modern histories overlap on every block. Detour
+              is a mapping tool that helps people navigate those layers. Instead
+              of listing attractions, it surfaces locations that tell the story
+              of the place: why a building sits where it does, what happened on
+              a corner, how the landscape shaped the city.
             </p>
           </section>
 
@@ -58,26 +59,23 @@ export function AboutModal({ isOpen, onClose }: AboutModalProps) {
             <h3>Current Status</h3>
             <p>
               This is an early prototype. The map, place data, and interface are
-              all under active development. We're looking for feedback from
-              expert tour guides working in Santa Fe and from the visitors they
-              serve. If you'd like to help shape what this becomes, we'd welcome
-              your input.
+              under active development. Feedback from tour guides working in
+              Santa Fe and from the visitors they serve is welcome and will
+              shape what this becomes.
             </p>
           </section>
 
           <section className="about-modal__section">
             <h3>Methodology</h3>
             <p>
-              The map is seeded from a curated place dataset designed to help
-              people read the city. Descriptions are generated through an
-              evidence-weighted process that combines existing place records with
-              official context, GIS layers, and source metadata, then turns that
-              material into short, grounded summaries for the map and place
-              cards. We prefer stronger corroboration first — register data,
-              official and quasi-official sources, specific source tags — and
-              avoid inventing dates, events, or unsupported claims. This layer is
-              an editorial bridge: better than generic templates, but still
-              subject to review and refinement.
+              Place descriptions are generated through an evidence-weighted
+              process that draws on official records, GIS data, and source
+              metadata — then distills that material into short, grounded
+              summaries. Stronger corroboration is preferred: register data,
+              official sources, and specific documentation take precedence. No
+              dates, events, or claims are invented. This layer is an editorial
+              bridge — better than generic templates, but still subject to
+              review and refinement.
             </p>
           </section>
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { AppHeader } from "../components/AppHeader";
+import { AppFooter } from "../components/AppFooter";
 import { getTours } from "../lib/tourApi";
 import type { TourSummary } from "../types/tour";
 
@@ -39,6 +40,7 @@ export function TourGallery() {
           </div>
         )}
       </div>
+      <AppFooter />
     </div>
   );
 }

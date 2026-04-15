@@ -3,8 +3,9 @@ import { Routes, Route } from "react-router-dom";
 import { Map } from "./components/Map";
 import { ModeToggle } from "./components/ModeToggle";
 import { AppHeader } from "./components/AppHeader";
+import { AppFooter } from "./components/AppFooter";
 import { TourGallery } from "./pages/TourGallery";
-import { TourViewer } from "./pages/TourViewer";
+import { TourStoryMap } from "./pages/TourStoryMap";
 import { ExplorePage } from "./pages/ExplorePage";
 import { parseShareableRouteState } from "./lib/urlState";
 import type { TravelMode } from "./lib/api";
@@ -30,6 +31,7 @@ function BuilderPage() {
           onModeChange={setMode}
         />
       </div>
+      <AppFooter />
     </div>
   );
 }
@@ -40,7 +42,7 @@ function App() {
       <Route path="/" element={<ExplorePage />} />
       <Route path="/build" element={<BuilderPage />} />
       <Route path="/tours" element={<TourGallery />} />
-      <Route path="/tours/:slug" element={<TourViewer />} />
+      <Route path="/tours/:slug" element={<TourStoryMap />} />
     </Routes>
   );
 }

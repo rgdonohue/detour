@@ -2,75 +2,936 @@
   "slug": "downtown-loop",
   "name": "Downtown Santa Fe Loop",
   "tagline": "Loretto Chapel to Canyon Road and back through the Plaza",
-  "description": "A 3-mile walking loop through the historic heart of Santa Fe. Pass the state capitol, one of the oldest churches in the US, the Canyon Road gallery corridor, the Cathedral Basilica, and return through the Plaza — over 400 years of history in a single walk.",
+  "description": "A 2.5-mile walking loop through the historic heart of Santa Fe. Pass the state capitol, one of the oldest churches in the US, the Canyon Road gallery corridor, the Cathedral Basilica, and return through the Plaza \u2014 over 400 years of history in a single walk.",
   "mode": "walk",
-  "distance_miles": 3.2,
+  "distance_miles": 2.5,
   "duration_minutes": 90,
   "route": {
     "type": "Feature",
     "geometry": {
-      "type": "LineString",
       "coordinates": [
-        [-105.937498, 35.685044],
-        [-105.937603, 35.684912],
-        [-105.937734, 35.684929],
-        [-105.937724, 35.684814],
-        [-105.938768, 35.684963],
-        [-105.940096, 35.685095],
-        [-105.940306, 35.684469],
-        [-105.939393, 35.684123],
-        [-105.937991, 35.683701],
-        [-105.937401, 35.683515],
-        [-105.937709, 35.683477],
-        [-105.937971, 35.683426],
-        [-105.938159, 35.682917],
-        [-105.938085, 35.682217],
-        [-105.938305, 35.682213],
-        [-105.939109, 35.682268],
-        [-105.939119, 35.682196],
-        [-105.938299, 35.682018],
-        [-105.938169, 35.681449],
-        [-105.937997, 35.681449],
-        [-105.937877, 35.681021],
-        [-105.937668, 35.680054],
-        [-105.937453, 35.679111],
-        [-105.936414, 35.67907],
-        [-105.936223, 35.679365],
-        [-105.936053, 35.679933],
-        [-105.936033, 35.680231],
-        [-105.935709, 35.681114],
-        [-105.935052, 35.681034],
-        [-105.934429, 35.681495],
-        [-105.934, 35.682699],
-        [-105.933986, 35.683081],
-        [-105.932851, 35.682957],
-        [-105.932159, 35.682845],
-        [-105.93155, 35.682654],
-        [-105.929169, 35.6819],
-        [-105.926359, 35.680877],
-        [-105.92629, 35.681034],
-        [-105.931481, 35.682687],
-        [-105.93108, 35.6847],
-        [-105.930789, 35.685869],
-        [-105.932353, 35.686308],
-        [-105.932541, 35.685692],
-        [-105.933799, 35.686008],
-        [-105.935519, 35.686457],
-        [-105.935798, 35.686877],
-        [-105.936206, 35.686965],
-        [-105.93668, 35.687064],
-        [-105.936601, 35.687266],
-        [-105.937883, 35.687558],
-        [-105.938108, 35.687563],
-        [-105.938064, 35.687657],
-        [-105.93871, 35.687804],
-        [-105.939681, 35.688084],
-        [-105.940814, 35.688325],
-        [-105.940927, 35.687644],
-        [-105.93957, 35.687328],
-        [-105.940217, 35.685167],
-        [-105.940228, 35.685169]
-      ]
+        [
+          -105.937539,
+          35.685723
+        ],
+        [
+          -105.937579,
+          35.685763
+        ],
+        [
+          -105.937631,
+          35.685726
+        ],
+        [
+          -105.937825,
+          35.685677
+        ],
+        [
+          -105.937694,
+          35.685225
+        ],
+        [
+          -105.937744,
+          35.685211
+        ],
+        [
+          -105.937676,
+          35.684941
+        ],
+        [
+          -105.937651,
+          35.684859
+        ],
+        [
+          -105.937647,
+          35.684792
+        ],
+        [
+          -105.937646,
+          35.684784
+        ],
+        [
+          -105.93765,
+          35.684623
+        ],
+        [
+          -105.937644,
+          35.684361
+        ],
+        [
+          -105.93776,
+          35.68406
+        ],
+        [
+          -105.937786,
+          35.683998
+        ],
+        [
+          -105.937869,
+          35.683816
+        ],
+        [
+          -105.937932,
+          35.683662
+        ],
+        [
+          -105.937954,
+          35.683669
+        ],
+        [
+          -105.937932,
+          35.683662
+        ],
+        [
+          -105.937892,
+          35.683651
+        ],
+        [
+          -105.937532,
+          35.683528
+        ],
+        [
+          -105.937892,
+          35.683651
+        ],
+        [
+          -105.937932,
+          35.683662
+        ],
+        [
+          -105.938089,
+          35.683238
+        ],
+        [
+          -105.938188,
+          35.682941
+        ],
+        [
+          -105.938196,
+          35.682914
+        ],
+        [
+          -105.938256,
+          35.682751
+        ],
+        [
+          -105.938263,
+          35.682566
+        ],
+        [
+          -105.938316,
+          35.682563
+        ],
+        [
+          -105.938402,
+          35.682219
+        ],
+        [
+          -105.938944,
+          35.682255
+        ],
+        [
+          -105.939024,
+          35.68226
+        ],
+        [
+          -105.938944,
+          35.682255
+        ],
+        [
+          -105.938402,
+          35.682219
+        ],
+        [
+          -105.938295,
+          35.682213
+        ],
+        [
+          -105.938291,
+          35.68203
+        ],
+        [
+          -105.938251,
+          35.681827
+        ],
+        [
+          -105.938244,
+          35.68179
+        ],
+        [
+          -105.938247,
+          35.681751
+        ],
+        [
+          -105.93828,
+          35.681708
+        ],
+        [
+          -105.938245,
+          35.6817
+        ],
+        [
+          -105.938191,
+          35.681687
+        ],
+        [
+          -105.938108,
+          35.681697
+        ],
+        [
+          -105.93804,
+          35.6817
+        ],
+        [
+          -105.938002,
+          35.681727
+        ],
+        [
+          -105.937953,
+          35.681688
+        ],
+        [
+          -105.937885,
+          35.681668
+        ],
+        [
+          -105.937378,
+          35.681613
+        ],
+        [
+          -105.937172,
+          35.681542
+        ],
+        [
+          -105.936847,
+          35.681512
+        ],
+        [
+          -105.936454,
+          35.681443
+        ],
+        [
+          -105.936327,
+          35.68141
+        ],
+        [
+          -105.936142,
+          35.681314
+        ],
+        [
+          -105.936061,
+          35.681291
+        ],
+        [
+          -105.93582,
+          35.681207
+        ],
+        [
+          -105.935762,
+          35.681173
+        ],
+        [
+          -105.93573,
+          35.681148
+        ],
+        [
+          -105.935496,
+          35.681063
+        ],
+        [
+          -105.93539,
+          35.681041
+        ],
+        [
+          -105.935293,
+          35.681034
+        ],
+        [
+          -105.935087,
+          35.681051
+        ],
+        [
+          -105.935059,
+          35.680972
+        ],
+        [
+          -105.935005,
+          35.680985
+        ],
+        [
+          -105.934835,
+          35.681072
+        ],
+        [
+          -105.934652,
+          35.681239
+        ],
+        [
+          -105.934573,
+          35.681301
+        ],
+        [
+          -105.934402,
+          35.681486
+        ],
+        [
+          -105.934292,
+          35.681695
+        ],
+        [
+          -105.934257,
+          35.681799
+        ],
+        [
+          -105.934172,
+          35.68205
+        ],
+        [
+          -105.934157,
+          35.68209
+        ],
+        [
+          -105.934137,
+          35.682141
+        ],
+        [
+          -105.933998,
+          35.682526
+        ],
+        [
+          -105.933959,
+          35.682554
+        ],
+        [
+          -105.933976,
+          35.682628
+        ],
+        [
+          -105.933935,
+          35.682827
+        ],
+        [
+          -105.933987,
+          35.683085
+        ],
+        [
+          -105.932781,
+          35.68299
+        ],
+        [
+          -105.932546,
+          35.682947
+        ],
+        [
+          -105.932529,
+          35.682998
+        ],
+        [
+          -105.932487,
+          35.682988
+        ],
+        [
+          -105.931594,
+          35.682772
+        ],
+        [
+          -105.931538,
+          35.682775
+        ],
+        [
+          -105.931489,
+          35.682756
+        ],
+        [
+          -105.931444,
+          35.682739
+        ],
+        [
+          -105.931432,
+          35.682736
+        ],
+        [
+          -105.931434,
+          35.6827
+        ],
+        [
+          -105.931412,
+          35.682671
+        ],
+        [
+          -105.931099,
+          35.682546
+        ],
+        [
+          -105.930031,
+          35.682229
+        ],
+        [
+          -105.931099,
+          35.682546
+        ],
+        [
+          -105.931412,
+          35.682671
+        ],
+        [
+          -105.931434,
+          35.6827
+        ],
+        [
+          -105.931432,
+          35.682736
+        ],
+        [
+          -105.931444,
+          35.682739
+        ],
+        [
+          -105.931489,
+          35.682756
+        ],
+        [
+          -105.931538,
+          35.682775
+        ],
+        [
+          -105.931594,
+          35.682772
+        ],
+        [
+          -105.932487,
+          35.682988
+        ],
+        [
+          -105.932529,
+          35.682998
+        ],
+        [
+          -105.932566,
+          35.683007
+        ],
+        [
+          -105.932756,
+          35.683055
+        ],
+        [
+          -105.933014,
+          35.683223
+        ],
+        [
+          -105.933136,
+          35.683296
+        ],
+        [
+          -105.933576,
+          35.6836
+        ],
+        [
+          -105.933791,
+          35.68378
+        ],
+        [
+          -105.933895,
+          35.683844
+        ],
+        [
+          -105.933928,
+          35.683966
+        ],
+        [
+          -105.933937,
+          35.684174
+        ],
+        [
+          -105.933928,
+          35.684331
+        ],
+        [
+          -105.934015,
+          35.68435
+        ],
+        [
+          -105.934011,
+          35.684409
+        ],
+        [
+          -105.934109,
+          35.684414
+        ],
+        [
+          -105.934331,
+          35.684412
+        ],
+        [
+          -105.934535,
+          35.684435
+        ],
+        [
+          -105.93509,
+          35.684526
+        ],
+        [
+          -105.935246,
+          35.684554
+        ],
+        [
+          -105.935368,
+          35.684571
+        ],
+        [
+          -105.935362,
+          35.684605
+        ],
+        [
+          -105.935356,
+          35.684628
+        ],
+        [
+          -105.935595,
+          35.684668
+        ],
+        [
+          -105.935619,
+          35.684672
+        ],
+        [
+          -105.935867,
+          35.684977
+        ],
+        [
+          -105.93602,
+          35.685166
+        ],
+        [
+          -105.936244,
+          35.685509
+        ],
+        [
+          -105.936331,
+          35.685714
+        ],
+        [
+          -105.936365,
+          35.685823
+        ],
+        [
+          -105.936474,
+          35.686216
+        ],
+        [
+          -105.936476,
+          35.686302
+        ],
+        [
+          -105.936527,
+          35.686392
+        ],
+        [
+          -105.936477,
+          35.686431
+        ],
+        [
+          -105.936413,
+          35.686375
+        ],
+        [
+          -105.936247,
+          35.686324
+        ],
+        [
+          -105.936207,
+          35.686315
+        ],
+        [
+          -105.936247,
+          35.686324
+        ],
+        [
+          -105.936413,
+          35.686375
+        ],
+        [
+          -105.936477,
+          35.686431
+        ],
+        [
+          -105.936538,
+          35.686466
+        ],
+        [
+          -105.936643,
+          35.686497
+        ],
+        [
+          -105.936599,
+          35.686603
+        ],
+        [
+          -105.936733,
+          35.686663
+        ],
+        [
+          -105.936783,
+          35.686674
+        ],
+        [
+          -105.936772,
+          35.686706
+        ],
+        [
+          -105.936863,
+          35.686727
+        ],
+        [
+          -105.936966,
+          35.686752
+        ],
+        [
+          -105.936873,
+          35.687017
+        ],
+        [
+          -105.936966,
+          35.686752
+        ],
+        [
+          -105.937542,
+          35.686885
+        ],
+        [
+          -105.938096,
+          35.687014
+        ],
+        [
+          -105.938135,
+          35.68704
+        ],
+        [
+          -105.938238,
+          35.687093
+        ],
+        [
+          -105.938248,
+          35.687104
+        ],
+        [
+          -105.938468,
+          35.687374
+        ],
+        [
+          -105.938545,
+          35.687363
+        ],
+        [
+          -105.938573,
+          35.687383
+        ],
+        [
+          -105.938545,
+          35.687363
+        ],
+        [
+          -105.938468,
+          35.687374
+        ],
+        [
+          -105.938438,
+          35.687408
+        ],
+        [
+          -105.938439,
+          35.687451
+        ],
+        [
+          -105.938091,
+          35.687575
+        ],
+        [
+          -105.938062,
+          35.687645
+        ],
+        [
+          -105.938041,
+          35.687719
+        ],
+        [
+          -105.938208,
+          35.687759
+        ],
+        [
+          -105.938693,
+          35.687873
+        ],
+        [
+          -105.938732,
+          35.68789
+        ],
+        [
+          -105.938816,
+          35.687927
+        ],
+        [
+          -105.938865,
+          35.687949
+        ],
+        [
+          -105.938909,
+          35.687965
+        ],
+        [
+          -105.939063,
+          35.688005
+        ],
+        [
+          -105.939057,
+          35.688026
+        ],
+        [
+          -105.939206,
+          35.688086
+        ],
+        [
+          -105.939203,
+          35.688094
+        ],
+        [
+          -105.939206,
+          35.688086
+        ],
+        [
+          -105.939226,
+          35.68804
+        ],
+        [
+          -105.9396,
+          35.688148
+        ],
+        [
+          -105.939665,
+          35.688167
+        ],
+        [
+          -105.939731,
+          35.688186
+        ],
+        [
+          -105.93976,
+          35.688163
+        ],
+        [
+          -105.940402,
+          35.688337
+        ],
+        [
+          -105.940494,
+          35.688367
+        ],
+        [
+          -105.940533,
+          35.688384
+        ],
+        [
+          -105.940444,
+          35.688704
+        ],
+        [
+          -105.94044,
+          35.688718
+        ],
+        [
+          -105.940547,
+          35.688744
+        ],
+        [
+          -105.940522,
+          35.68882
+        ],
+        [
+          -105.940611,
+          35.688838
+        ],
+        [
+          -105.940874,
+          35.688889
+        ],
+        [
+          -105.940869,
+          35.68895
+        ],
+        [
+          -105.941223,
+          35.689015
+        ],
+        [
+          -105.940869,
+          35.68895
+        ],
+        [
+          -105.940874,
+          35.688889
+        ],
+        [
+          -105.940611,
+          35.688838
+        ],
+        [
+          -105.940629,
+          35.68881
+        ],
+        [
+          -105.940687,
+          35.688779
+        ],
+        [
+          -105.940787,
+          35.688438
+        ],
+        [
+          -105.940762,
+          35.6884
+        ],
+        [
+          -105.940792,
+          35.688342
+        ],
+        [
+          -105.940817,
+          35.688293
+        ],
+        [
+          -105.940864,
+          35.688299
+        ],
+        [
+          -105.940909,
+          35.688305
+        ],
+        [
+          -105.940876,
+          35.68826
+        ],
+        [
+          -105.940943,
+          35.687886
+        ],
+        [
+          -105.940978,
+          35.687687
+        ],
+        [
+          -105.940932,
+          35.687675
+        ],
+        [
+          -105.940891,
+          35.687664
+        ],
+        [
+          -105.940864,
+          35.687641
+        ],
+        [
+          -105.940547,
+          35.68757
+        ],
+        [
+          -105.940397,
+          35.687537
+        ],
+        [
+          -105.939822,
+          35.687393
+        ],
+        [
+          -105.939753,
+          35.68738
+        ],
+        [
+          -105.939727,
+          35.687328
+        ],
+        [
+          -105.939606,
+          35.687301
+        ],
+        [
+          -105.939609,
+          35.687255
+        ],
+        [
+          -105.9398,
+          35.686579
+        ],
+        [
+          -105.939765,
+          35.686571
+        ],
+        [
+          -105.939755,
+          35.68651
+        ],
+        [
+          -105.939173,
+          35.686354
+        ],
+        [
+          -105.939102,
+          35.686332
+        ],
+        [
+          -105.938859,
+          35.68625
+        ],
+        [
+          -105.938424,
+          35.686098
+        ],
+        [
+          -105.938378,
+          35.686081
+        ],
+        [
+          -105.938305,
+          35.68608
+        ],
+        [
+          -105.937983,
+          35.686072
+        ],
+        [
+          -105.937944,
+          35.686073
+        ],
+        [
+          -105.937919,
+          35.686011
+        ],
+        [
+          -105.93791,
+          35.686001
+        ],
+        [
+          -105.937871,
+          35.685976
+        ],
+        [
+          -105.937781,
+          35.685801
+        ],
+        [
+          -105.937686,
+          35.685793
+        ],
+        [
+          -105.937579,
+          35.685763
+        ],
+        [
+          -105.937539,
+          35.685723
+        ]
+      ],
+      "type": "LineString"
     },
     "properties": {}
   },
@@ -78,100 +939,142 @@
     {
       "order": 1,
       "name": "Loretto Chapel",
-      "coordinates": [-105.93754, 35.68562],
+      "coordinates": [
+        -105.93754,
+        35.68562
+      ],
       "category": "history",
-      "description": "Famous for its mysterious 'miraculous staircase' — a circular, freestanding spiral with no visible central support, built around 1878. The Gothic Revival chapel was constructed for the Sisters of Loretto by Archbishop Lamy's builder. Now a museum and wedding venue, it marks the beginning of this walk along Old Santa Fe Trail."
+      "description": "Famous for its mysterious 'miraculous staircase' \u2014 a circular, freestanding spiral with no visible central support, built around 1878. The Gothic Revival chapel was constructed for the Sisters of Loretto by Archbishop Lamy's builder. Now a museum and wedding venue, it marks the beginning of this walk along Old Santa Fe Trail."
     },
     {
       "order": 2,
       "name": "Barrio de Analco",
-      "coordinates": [-105.9379485, 35.6836817],
+      "coordinates": [
+        -105.9379485,
+        35.6836817
+      ],
       "category": "culture",
       "description": "One of the oldest continuously inhabited neighborhoods in the United States, settled in the early 1600s by Mexican and Tlaxcalan Indian servants who worked for the Spanish colonial government. The Barrio's adobe homes along De Vargas Street reflect over four centuries of New Mexican vernacular architecture and community life."
     },
     {
       "order": 3,
       "name": "San Miguel Chapel",
-      "coordinates": [-105.93756879, 35.68345568],
+      "coordinates": [
+        -105.93756879,
+        35.68345568
+      ],
       "category": "culture",
       "description": "Often cited as the oldest church still in use in the United States, with origins around 1610. The current structure was rebuilt after the Pueblo Revolt of 1680 and reconstructed again in 1710. Thick adobe walls and hand-hewn wood beam ceilings survive from that era. The chapel houses a 780-pound bell cast in 1356."
     },
     {
       "order": 4,
       "name": "New Mexico State Capitol",
-      "coordinates": [-105.93909235, 35.68311705],
+      "coordinates": [
+        -105.939027,
+        35.682226
+      ],
       "category": "civic",
       "description": "The only circular state capitol building in the United States, known as the Roundhouse. Completed in 1966 and designed to echo the Zia Pueblo sun symbol, it sits at the center of state government surrounded by sculpture gardens and native plantings. The rotunda interior features New Mexican art from across the state's history."
     },
     {
       "order": 5,
       "name": "Water Bearers",
-      "coordinates": [-105.9383399, 35.6818158],
+      "coordinates": [
+        -105.9383399,
+        35.6818158
+      ],
       "category": "history",
-      "description": "A bronze monument on the Capitol grounds honoring the acequia tradition of community water management that sustained Santa Fe since Spanish colonial settlement. The figure carries water in traditional vessels — a reminder that this city was built in a high-desert environment where water was managed communally and carefully."
+      "description": "A bronze monument on the Capitol grounds honoring the acequia tradition of community water management that sustained Santa Fe since Spanish colonial settlement. The figure carries water in traditional vessels \u2014 a reminder that this city was built in a high-desert environment where water was managed communally and carefully."
     },
     {
       "order": 6,
       "name": "Gerald Peters Gallery",
-      "coordinates": [-105.9340007, 35.6817418],
+      "coordinates": [
+        -105.9340007,
+        35.6817418
+      ],
       "category": "art",
-      "description": "One of the foremost galleries on Canyon Road, representing American and European art from the 19th century through the contemporary era. The gallery occupies a sprawling adobe compound with interior courtyards — an exemplar of the Canyon Road model where art and architecture merge into a single experience."
+      "description": "One of the foremost galleries on Canyon Road, representing American and European art from the 19th century through the contemporary era. The gallery occupies a sprawling adobe compound with interior courtyards \u2014 an exemplar of the Canyon Road model where art and architecture merge into a single experience."
     },
     {
       "order": 7,
       "name": "El Zaguan",
-      "coordinates": [-105.9300183, 35.6822575],
+      "coordinates": [
+        -105.9300183,
+        35.6822575
+      ],
       "category": "history",
-      "description": "A 19th-century hacienda on Canyon Road now owned by the Historic Santa Fe Foundation. The property is notable for its Victorian-era garden — one of the oldest in Santa Fe — with peony beds and fruit trees planted in the late 1800s. The garden is open to the public and offers a quiet respite from the gallery corridor."
+      "description": "A 19th-century hacienda on Canyon Road now owned by the Historic Santa Fe Foundation. The property is notable for its Victorian-era garden \u2014 one of the oldest in Santa Fe \u2014 with peony beds and fruit trees planted in the late 1800s. The garden is open to the public and offers a quiet respite from the gallery corridor."
     },
     {
       "order": 8,
       "name": "Cathedral Basilica of Saint Francis",
-      "coordinates": [-105.93614391, 35.68648866],
+      "coordinates": [
+        -105.93614391,
+        35.68648866
+      ],
       "category": "culture",
       "description": "The architectural centerpiece of Santa Fe's skyline, built by Archbishop Jean-Baptiste Lamy between 1869 and 1886 in Romanesque Revival style. Lamy imported French stonemasons to construct it, and the cathedral replaced an earlier adobe church on the site. The Lady Chapel inside preserves a 1625 wooden statue of the Virgin Mary that survived the Pueblo Revolt."
     },
     {
       "order": 9,
       "name": "Museum of Contemporary Native Arts",
-      "coordinates": [-105.93704520, 35.68705711],
+      "coordinates": [
+        -105.9370452,
+        35.68705711
+      ],
       "category": "history",
-      "description": "Operated by the Institute of American Indian Arts, this museum on the south side of the Plaza presents contemporary work by Native artists from across the Americas. The building — a former Federal Building and Post Office — places Indigenous contemporary art at the literal center of Santa Fe's civic and cultural life."
+      "description": "Operated by the Institute of American Indian Arts, this museum on the south side of the Plaza presents contemporary work by Native artists from across the Americas. The building \u2014 a former Federal Building and Post Office \u2014 places Indigenous contemporary art at the literal center of Santa Fe's civic and cultural life."
     },
     {
       "order": 10,
       "name": "Santa Fe Plaza",
-      "coordinates": [-105.93853097, 35.68742063],
+      "coordinates": [
+        -105.93853097,
+        35.68742063
+      ],
       "category": "culture",
       "description": "The historic heart of Santa Fe since its founding as a Spanish colonial capital around 1610. The Plaza has served as a marketplace, military parade ground, and civic gathering space for over 400 years. The Palace of the Governors lines its north edge; portals along the perimeter shelter Native American jewelry and pottery vendors year-round."
     },
     {
       "order": 11,
       "name": "Palace of the Governors",
-      "coordinates": [-105.93815262, 35.68791375],
+      "coordinates": [
+        -105.93815262,
+        35.68791375
+      ],
       "category": "history",
       "description": "The oldest continuously occupied public building in the United States, constructed around 1610 as the seat of Spanish colonial government in New Mexico. Occupied successively by Spanish governors, Pueblo leaders during the Revolt, Mexican governors, and US territorial governors, it is now a museum of New Mexican history. Its long portal is one of the most recognized images of Santa Fe."
     },
     {
       "order": 12,
       "name": "New Mexico Museum of Art",
-      "coordinates": [-105.93913660, 35.68824710],
+      "coordinates": [
+        -105.9391366,
+        35.6882471
+      ],
       "category": "art",
       "description": "Founded in 1917, this Pueblo Revival landmark anchors the northwest corner of the Plaza. Designed by I.H. and William Rapp, the building established the architectural vocabulary that would define Santa Fe's civic aesthetic for a century. The collection centers on New Mexican and Southwestern art, with a particular depth in early 20th-century regional painters."
     },
     {
       "order": 13,
       "name": "Georgia O'Keeffe Museum",
-      "coordinates": [-105.94117807, 35.68917733],
+      "coordinates": [
+        -105.94117807,
+        35.68917733
+      ],
       "category": "art",
-      "description": "The world's largest collection of Georgia O'Keeffe's work, celebrating the artist who made New Mexico's high desert landscape her lifelong subject. O'Keeffe moved permanently to New Mexico in 1949 and lived there until her death in 1986. The museum — founded in 1997 in a historic adobe complex — holds over 3,000 of her works."
+      "description": "The world's largest collection of Georgia O'Keeffe's work, celebrating the artist who made New Mexico's high desert landscape her lifelong subject. O'Keeffe moved permanently to New Mexico in 1949 and lived there until her death in 1986. The museum \u2014 founded in 1997 in a historic adobe complex \u2014 holds over 3,000 of her works."
     },
     {
       "order": 14,
       "name": "The Lensic",
-      "coordinates": [-105.94106468, 35.68789992],
+      "coordinates": [
+        -105.94106468,
+        35.68789992
+      ],
       "category": "culture",
-      "description": "A 1931 Moorish-Spanish Renaissance movie palace restored in 2001 as Santa Fe's premier performing arts venue. The Lensic Performing Arts Center now hosts opera, jazz, film, and theater — a cultural anchor on West San Francisco Street, one block from the Plaza. The restored interior retains its original ornate detailing and 820-seat balcony."
+      "description": "A 1931 Moorish-Spanish Renaissance movie palace restored in 2001 as Santa Fe's premier performing arts venue. The Lensic Performing Arts Center now hosts opera, jazz, film, and theater \u2014 a cultural anchor on West San Francisco Street, one block from the Plaza. The restored interior retains its original ornate detailing and 820-seat balcony."
     }
   ]
 }

@@ -48,11 +48,7 @@ export function TourPanel({ tour, activeStopIndex, onStopClick }: TourPanelProps
         ))}
       </div>
 
-      <div className="tour-panel__footer">
-        <Link to="/build" className="tour-panel__build-link">
-          Build your own route
-        </Link>
-      </div>
+      <div className="tour-panel__footer" />
     </div>
   );
 }

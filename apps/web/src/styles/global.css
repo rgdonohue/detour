@@ -31,6 +31,26 @@ body {
   height: 100vh;
 }
 
+.app-footer {
+  flex-shrink: 0;
+  text-align: center;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.6875rem;
+  color: var(--text-secondary);
+  background: rgba(44, 24, 16, 0.03);
+  border-top: 1px solid rgba(44, 24, 16, 0.08);
+  line-height: 1.4;
+}
+
+.app-footer a {
+  color: var(--terracotta);
+  text-decoration: none;
+}
+
+.app-footer a:hover {
+  text-decoration: underline;
+}
+
 .app-map-wrapper {
   flex: 1;
   position: relative;
@@ -854,6 +874,28 @@ h1, h2, h3 {
   border-top: 1px solid rgba(44, 24, 16, 0.07);
 }
 
+/* Explore intro — shown below layers before any POI is selected */
+.explore-intro {
+  padding: 1rem 1rem 1.25rem;
+  border-top: 1px solid rgba(44, 24, 16, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  animation: poi-fade-in 0.35s ease-out;
+}
+
+.explore-intro p {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.explore-intro__cta {
+  color: var(--dark-brown) !important;
+  font-weight: 500;
+}
+
 /* Legend — layer toggle rows */
 .explore-legend {
   display: flex;
@@ -1670,6 +1712,12 @@ h1, h2, h3 {
   opacity: 0.8;
 }
 
+.tour-panel__story-row {
+  flex-shrink: 0;
+  padding: 0.5rem 1.125rem;
+  border-bottom: 1px solid rgba(44, 24, 16, 0.06);
+}
+
 /* ============================================================
    Tour Viewer — Stop Cards
    ============================================================ */
@@ -1793,8 +1841,8 @@ h1, h2, h3 {
 
 .tour-stop-marker--active {
   background: var(--dark-brown);
-  transform: scale(1.25);
   box-shadow: 0 2px 8px rgba(44, 24, 16, 0.35);
+  /* transform handled by tour-marker-pulse; returns to scale(1) after animation */
 }
 
 /* ============================================================
@@ -1995,4 +2043,355 @@ h1, h2, h3 {
 @keyframes about-slide-in {
   from { opacity: 0; transform: translate(-50%, -48%); }
   to   { opacity: 1; transform: translate(-50%, -50%); }
+}
+
+/* ─── TourStoryMap — scrollytelling layout ──────────────────────────────── */
+
+.story-map {
+  position: relative;
+}
+
+/* Scroll progress indicator */
+.story-map__progress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  width: 0;
+  background: var(--terracotta);
+  z-index: 20;
+  pointer-events: none;
+}
+
+.story-map--loading,
+.story-map--error {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Fixed back link — always visible over the experience */
+.story-map__back-link {
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  z-index: 10;
+  font-size: 0.8125rem;
+  font-family: "DM Sans", system-ui, sans-serif;
+  font-weight: 500;
+  color: var(--dark-brown);
+  text-decoration: none;
+  background: rgba(250, 247, 242, 0.92);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  padding: 0.375rem 0.75rem;
+  border-radius: 3px;
+  border: 1px solid rgba(44, 24, 16, 0.12);
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.story-map__back-link:hover {
+  color: var(--terracotta);
+  border-color: rgba(196, 91, 40, 0.3);
+}
+
+/* Sticky map — stays at top as narrative scrolls over it */
+.story-map__map-container {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  width: 100%;
+  background: #e6e1d9; /* placeholder tint until map is wired in */
+}
+
+/* Narrative pulls up to overlay the map container */
+.story-map__narrative {
+  position: relative;
+  z-index: 1;
+  margin-top: -100vh;
+}
+
+/* ── Chapters ──────────────────────────────────────────────────────────── */
+
+.story-map__chapter {
+  min-height: 80vh;
+  padding: 3.5rem 2rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.story-map__chapter-card {
+  max-width: 360px;
+  margin-right: auto;
+  background: rgba(250, 247, 242, 0.95);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(44, 24, 16, 0.1);
+  border-radius: 4px;
+  padding: 1.375rem 1.5rem;
+  box-shadow: 0 2px 12px rgba(44, 24, 16, 0.07);
+  opacity: 0.15;
+  transform: translateY(20px);
+  transition: opacity 0.4s, transform 0.4s, box-shadow 0.2s;
+}
+
+/* Already-visited chapters remain dimly readable */
+.story-map__chapter--passed .story-map__chapter-card {
+  opacity: 0.4;
+  transform: translateY(0);
+}
+
+/* Active chapter — full opacity, elevated shadow */
+.story-map__chapter--active .story-map__chapter-card {
+  opacity: 1;
+  transform: translateY(0);
+  box-shadow: 0 4px 20px rgba(44, 24, 16, 0.12);
+}
+
+/* ── Hero chapter ────────────────────────────────────────────────────── */
+
+.story-map__chapter--hero {
+  min-height: 100vh;
+  justify-content: flex-end;
+  padding-bottom: 5rem;
+}
+
+.story-map__tour-name {
+  margin: 0 0 0.375rem;
+  font-size: 1.625rem;
+  font-weight: 500;
+  color: var(--dark-brown);
+  line-height: 1.2;
+}
+
+.story-map__tagline {
+  margin: 0 0 0.875rem;
+  font-size: 0.9375rem;
+  font-style: italic;
+  color: var(--terracotta);
+  line-height: 1.4;
+}
+
+.story-map__description {
+  margin: 0 0 1.25rem;
+  font-size: 0.875rem;
+  line-height: 1.65;
+  color: var(--text-secondary);
+}
+
+.story-map__stats {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.story-map__stat {
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+}
+
+.story-map__stat-value {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--dark-brown);
+}
+
+.story-map__stat-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.story-map__stat-divider {
+  color: rgba(44, 24, 16, 0.25);
+  font-size: 0.875rem;
+}
+
+/* ── Stop chapters ───────────────────────────────────────────────────── */
+
+.story-map__stop-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.875rem;
+  margin-bottom: 0.875rem;
+}
+
+.story-map__stop-number {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--terracotta);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.8125rem;
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+}
+
+.story-map__stop-meta {
+  flex: 1;
+}
+
+.story-map__stop-name {
+  margin: 0 0 0.375rem;
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 1.0625rem;
+  font-weight: 500;
+  color: var(--dark-brown);
+  line-height: 1.25;
+}
+
+.story-map__category-badge {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  border-radius: 2px;
+  font-family: "DM Sans", system-ui, sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.story-map__category-badge--history {
+  background: rgba(196, 91, 40, 0.12);
+  color: var(--terracotta);
+}
+
+.story-map__category-badge--art {
+  background: rgba(107, 71, 168, 0.12);
+  color: #6b47a8;
+}
+
+.story-map__category-badge--scenic {
+  background: rgba(107, 127, 94, 0.12);
+  color: var(--sage);
+}
+
+.story-map__category-badge--culture {
+  background: rgba(196, 91, 40, 0.1);
+  color: var(--terracotta);
+}
+
+.story-map__category-badge--civic {
+  background: rgba(44, 24, 16, 0.07);
+  color: var(--text-secondary);
+}
+
+.story-map__stop-description {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.65;
+  color: var(--text-secondary);
+}
+
+/* ── Closing chapter ─────────────────────────────────────────────────── */
+
+.story-map__chapter--closing {
+  min-height: 100vh;
+  justify-content: center;
+}
+
+.story-map__closing-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: var(--dark-brown);
+}
+
+.story-map__closing-summary {
+  margin: 0 0 1.5rem;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.story-map__closing-links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.story-map__closing-link {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  font-family: "DM Sans", system-ui, sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  text-decoration: none;
+  border: 1px solid rgba(44, 24, 16, 0.2);
+  border-radius: 3px;
+  color: var(--dark-brown);
+  transition: border-color 0.15s, color 0.15s;
+  text-align: center;
+}
+
+.story-map__closing-link:hover {
+  border-color: rgba(44, 24, 16, 0.4);
+}
+
+
+/* ── Stop marker pulse — fires once on chapter enter ─────────────────────── */
+
+@keyframes tour-marker-pulse {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+.tour-stop-marker--pulsing {
+  animation: tour-marker-pulse 0.6s ease-out 1;
+}
+
+/* ── Story map — mobile (≤768px) ─────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  /* Back link: more visible pill over map */
+  .story-map__back-link {
+    background: rgba(250, 247, 242, 0.96);
+    border-radius: 999px;
+    padding: 0.375rem 0.875rem;
+  }
+
+  /* Shorter chapters so cards sit near viewport bottom */
+  .story-map__chapter {
+    min-height: 60vh;
+    padding: 1.5rem 1rem;
+    justify-content: flex-end;
+    padding-bottom: 1.25rem;
+  }
+
+  /* Hero and closing: keep their full-height feel but also anchor to bottom */
+  .story-map__chapter--hero {
+    min-height: 100vh;
+    padding-bottom: 2rem;
+  }
+
+  .story-map__chapter--closing {
+    min-height: 100vh;
+    justify-content: flex-end;
+    padding-bottom: 2rem;
+  }
+
+  /* Card: full-width, higher opacity for legibility */
+  .story-map__chapter-card {
+    max-width: none;
+    margin-right: 0;
+    background: rgba(250, 247, 242, 0.97);
+  }
+
+  /* Tighter text on small screens */
+  .story-map__stop-name {
+    font-size: 1.125rem;
+  }
+
+  .story-map__stop-description {
+    font-size: 0.8125rem;
+  }
 }

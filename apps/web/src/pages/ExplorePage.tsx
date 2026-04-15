@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { AppHeader } from "../components/AppHeader";
+import { AppFooter } from "../components/AppFooter";
 import { ExploreMap, type SelectedPoi } from "../components/explore/ExploreMap";
 import { CATEGORY_COLORS, type PlaceCategory } from "../data/places";
 
@@ -83,6 +84,17 @@ export function ExplorePage() {
               onToggle={handleToggle}
               onToggleAll={handleToggleAll}
             />
+            {!displayedPoi && (
+              <div className="explore-intro">
+                <p>
+                  Santa Fe's 400-year story is written into its streets, walls,
+                  and landscape. This map plots 515 places across five
+                  categories — from sites on the National Register to scenic
+                  overlooks and public art.
+                </p>
+                <p className="explore-intro__cta">Click any dot to learn more.</p>
+              </div>
+            )}
             {displayedPoi && (
               <PoiDetail
                 key={displayedPoi.name}
@@ -93,6 +105,7 @@ export function ExplorePage() {
           </aside>
         </div>
       </div>
+      <AppFooter />
     </div>
   );
 }
