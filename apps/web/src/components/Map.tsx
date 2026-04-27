@@ -147,6 +147,28 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
   const resultRef = useRef(result);
   resultRef.current = result;
 
+  // Refs for dragend handlers — they need fresh values without making
+  // placeOriginMarker / placeDestinationMarker depend on changing state,
+  // which would defeat their useCallback([]) memoization and rebuild
+  // markers on every render.
+  const originRef = useRef<[number, number] | null>(null);
+  const destinationRef = useRef<[number, number] | null>(null);
+  const modeRef = useRef<TravelMode>(mode);
+  const checkRouteRef = useRef<typeof checkRoute | null>(null);
+  const applyRouteRef = useRef<
+    | ((
+        routeData: RouteResponse,
+        originCoord: [number, number],
+        destinationCoord: [number, number],
+        currentMode: TravelMode,
+      ) => Promise<StopSuggestion[]>)
+    | null
+  >(null);
+  originRef.current = origin;
+  destinationRef.current = destination;
+  modeRef.current = mode;
+  checkRouteRef.current = checkRoute;
+
   useEffect(() => {
     let cancelled = false;
     getConfig()
@@ -235,9 +257,38 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
     img.style.pointerEvents = "none";
     el.appendChild(img);
 
-    originMarkerRef.current = new maplibregl.Marker({ element: el })
+    const marker = new maplibregl.Marker({ element: el, draggable: true })
       .setLngLat(coord)
       .addTo(map);
+    originMarkerRef.current = marker;
+
+    marker.on("dragend", () => {
+      const prevOrigin = originRef.current;
+      const { lng, lat } = marker.getLngLat();
+      const newOrigin: [number, number] = [lng, lat];
+      setOrigin(newOrigin);
+
+      const dest = destinationRef.current;
+      if (!dest) return;
+
+      const check = checkRouteRef.current;
+      const apply = applyRouteRef.current;
+      if (!check || !apply) return;
+
+      check(
+        dest[0], dest[1],
+        effectiveMilesFor(modeRef.current),
+        lng, lat,
+        modeRef.current,
+      )
+        .then((data) => apply(data, newOrigin, dest, modeRef.current))
+        .catch(() => {
+          if (prevOrigin) {
+            marker.setLngLat(prevOrigin);
+            setOrigin(prevOrigin);
+          }
+        });
+    });
   }, []);
 
   const placeDestinationMarker = useCallback(
@@ -261,9 +312,32 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
       el.style.border = "2px solid white";
       el.style.boxShadow = "0 1px 3px rgba(0,0,0,0.3)";
 
-      destMarkerRef.current = new maplibregl.Marker({ element: el })
+      const marker = new maplibregl.Marker({ element: el, draggable: true })
         .setLngLat(coord)
         .addTo(map);
+      destMarkerRef.current = marker;
+
+      marker.on("dragend", () => {
+        const prevDest = destinationRef.current;
+        const { lng, lat } = marker.getLngLat();
+        const orig = originRef.current;
+        if (!orig) return;
+
+        const check = checkRouteRef.current;
+        const apply = applyRouteRef.current;
+        if (!check || !apply) return;
+
+        check(
+          lng, lat,
+          effectiveMilesFor(modeRef.current),
+          orig[0], orig[1],
+          modeRef.current,
+        )
+          .then((data) => apply(data, orig, [lng, lat], modeRef.current))
+          .catch(() => {
+            if (prevDest) marker.setLngLat(prevDest);
+          });
+      });
     },
     [],
   );
@@ -435,6 +509,7 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
       renderRouteLine,
     ],
   );
+  applyRouteRef.current = applyShortestRouteToMap;
 
   const applyDetourToMap = useCallback(
     (detour: RouteCheckResult, shortest: RouteCheckResult) => {

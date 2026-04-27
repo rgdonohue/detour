@@ -91,6 +91,16 @@ h1, h2, h3 {
   line-height: 1.4;
 }
 
+.origin-marker,
+.dest-marker {
+  cursor: grab;
+}
+
+.origin-marker:active,
+.dest-marker:active {
+  cursor: grabbing;
+}
+
 /* Full-width header bar */
 .app-header {
   flex-shrink: 0;
