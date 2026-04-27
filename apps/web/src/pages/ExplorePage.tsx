@@ -1,8 +1,10 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { AppHeader } from "../components/AppHeader";
 import { AppFooter } from "../components/AppFooter";
-import { ExploreMap, type SelectedPoi } from "../components/explore/ExploreMap";
+import { ExploreMap, type SelectedPoi, featureToSelectedPoi } from "../components/explore/ExploreMap";
+import { SearchBar } from "../components/explore/SearchBar";
 import { CATEGORY_COLORS, type PlaceCategory } from "../data/places";
+import { getPois, type PoiFeature, type PoisResponse } from "../lib/api";
 
 const ALL_CATEGORIES: PlaceCategory[] = ["history", "art", "scenic", "culture", "civic"];
 
@@ -21,6 +23,12 @@ function defaultActiveCategories(): Set<PlaceCategory> {
 export function ExplorePage() {
   const [activeCategories, setActiveCategories] = useState<Set<PlaceCategory>>(defaultActiveCategories);
   const [selectedPoi, setSelectedPoi] = useState<SelectedPoi | null>(null);
+  const [pois, setPois] = useState<PoisResponse | null>(null);
+  const flyToRef = useRef<(coords: [number, number]) => void>(() => {});
+
+  useEffect(() => {
+    getPois().then(setPois).catch((err) => console.warn("Failed to load POIs:", err));
+  }, []);
 
   // displayedPoi is what's actually in the DOM; selectedPoi is the intent.
   // They diverge during the fade-out phase of a transition.
@@ -54,6 +62,11 @@ export function ExplorePage() {
     }
   }, [selectedPoi]);
 
+  const handleSearchSelect = useCallback((poi: PoiFeature) => {
+    setSelectedPoi(featureToSelectedPoi(poi));
+    flyToRef.current(poi.geometry.coordinates as [number, number]);
+  }, []);
+
   const handleToggle = useCallback((cat: PlaceCategory) => {
     setActiveCategories((prev) => {
       const next = new Set(prev);
@@ -77,7 +90,19 @@ export function ExplorePage() {
       <AppHeader />
       <div className="app-map-wrapper">
         <div className="map-wrapper">
-          <ExploreMap activeCategories={activeCategories} onPoiSelect={setSelectedPoi} />
+          <ExploreMap
+            activeCategories={activeCategories}
+            onPoiSelect={setSelectedPoi}
+            pois={pois}
+            flyToRef={flyToRef}
+          />
+          {pois && (
+            <SearchBar
+              pois={pois.features}
+              activeCategories={activeCategories}
+              onSelect={handleSearchSelect}
+            />
+          )}
           <aside className="app-sidebar explore-sidebar">
             <ExplorePanel
               activeCategories={activeCategories}

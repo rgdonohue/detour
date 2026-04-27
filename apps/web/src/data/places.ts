@@ -16,6 +16,14 @@ export const CATEGORY_COLORS: Record<PlaceCategory, string> = {
   civic:   "#6a7d99",
 };
 
+export const CATEGORY_LABELS: Record<PlaceCategory, string> = {
+  history: "History",
+  art:     "Art",
+  scenic:  "Scenic",
+  culture: "Culture",
+  civic:   "Landmarks",
+};
+
 export interface Place {
   name: string;
   category: PlaceCategory;
