@@ -113,6 +113,8 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
   const destMarkerRef = useRef<maplibregl.Marker | null>(null);
   const stopMarkersRef = useRef<{ stop: StopSuggestion; el: HTMLElement; marker: maplibregl.Marker }[]>([]);
   const stopPopupRef = useRef<maplibregl.Popup | null>(null);
+  const popupFadeStartRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const popupFadeRemoveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isCheckingRef = useRef(false);
   const detourRequestRef = useRef<number>(0);
   const detourAbortControllerRef = useRef<AbortController | null>(null);
@@ -282,7 +284,8 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
         modeRef.current,
       )
         .then((data) => apply(data, newOrigin, dest, modeRef.current))
-        .catch(() => {
+        .catch((err) => {
+          if (err instanceof Error && err.name === "AbortError") return;
           if (prevOrigin) {
             marker.setLngLat(prevOrigin);
             setOrigin(prevOrigin);
@@ -334,7 +337,8 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
           modeRef.current,
         )
           .then((data) => apply(data, orig, [lng, lat], modeRef.current))
-          .catch(() => {
+          .catch((err) => {
+            if (err instanceof Error && err.name === "AbortError") return;
             if (prevDest) marker.setLngLat(prevDest);
           });
       });
@@ -342,14 +346,29 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
     [],
   );
 
+  const clearPopupFade = useCallback(() => {
+    if (popupFadeStartRef.current) {
+      clearTimeout(popupFadeStartRef.current);
+      popupFadeStartRef.current = null;
+    }
+    if (popupFadeRemoveRef.current) {
+      clearTimeout(popupFadeRemoveRef.current);
+      popupFadeRemoveRef.current = null;
+    }
+    stopPopupRef.current
+      ?.getElement()
+      ?.classList.remove("stop-tooltip-popup--fade-out");
+  }, []);
+
   const clearStopMarkers = useCallback(() => {
+    clearPopupFade();
     if (stopPopupRef.current) {
       stopPopupRef.current.remove();
       stopPopupRef.current = null;
     }
     stopMarkersRef.current.forEach(({ marker }) => marker.remove());
     stopMarkersRef.current = [];
-  }, []);
+  }, [clearPopupFade]);
 
   const updateStopMarkers = useCallback(
     (stops: StopSuggestion[]) => {
@@ -396,9 +415,11 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
         }
 
         el.addEventListener("mouseenter", () => {
+          clearPopupFade();
           popup.setHTML(stop.name).setLngLat(stop.coordinates).addTo(map);
         });
         el.addEventListener("mouseleave", () => {
+          clearPopupFade();
           popup.remove();
         });
         el.addEventListener("click", (e) => {
@@ -409,7 +430,7 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
         stopMarkersRef.current.push({ stop, el, marker });
       });
     },
-    [clearStopMarkers],
+    [clearStopMarkers, clearPopupFade],
   );
 
   const fetchAndSetStops = useCallback(
@@ -419,6 +440,7 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
       category: PlaceCategory | null,
       currentMiles: number,
       currentMode: TravelMode,
+      routeCoordinates: number[][] | null = null,
       persistedStops: StopSuggestion[] = [],
     ): Promise<StopSuggestion[]> => {
       stopSuggestControllerRef.current?.abort();
@@ -436,6 +458,7 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
           currentMiles,
           currentMode,
           signal,
+          routeCoordinates ?? undefined,
         );
         if (signal.aborted) return [];
         const stops = res.stops ?? [];
@@ -499,7 +522,7 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
       fitRouteBounds(routeData.route.geometry.coordinates);
 
       setClickPhase("route-shown");
-      return fetchAndSetStops(originCoord, destinationCoord, null, effectiveMilesFor(currentMode), currentMode);
+      return fetchAndSetStops(originCoord, destinationCoord, null, effectiveMilesFor(currentMode), currentMode, routeData.route.geometry.coordinates);
     },
     [
       fetchAndSetStops,
@@ -1001,6 +1024,27 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
     onStopClickRef.current = handleSelectStop;
   }, [handleSelectStop]);
 
+  const handleFocusStop = useCallback(
+    (stop: StopSuggestion) => {
+      const map = mapRef.current;
+      const popup = stopPopupRef.current;
+      if (!map) return;
+      map.flyTo({ center: stop.coordinates, zoom: 16, duration: 700 });
+      if (!popup) return;
+      clearPopupFade();
+      popup.setHTML(stop.name).setLngLat(stop.coordinates).addTo(map);
+      popupFadeStartRef.current = setTimeout(() => {
+        const el = popup.getElement();
+        el?.classList.add("stop-tooltip-popup--fade-out");
+        popupFadeRemoveRef.current = setTimeout(() => {
+          popup.remove();
+          el?.classList.remove("stop-tooltip-popup--fade-out");
+        }, 320);
+      }, 4000);
+    },
+    [clearPopupFade],
+  );
+
   // Add/remove markers based on default-visible rank, showAllStops toggle, and active categories
   useEffect(() => {
     const map = mapRef.current;
@@ -1106,7 +1150,7 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
           );
           fitRouteBounds(data.route.geometry.coordinates);
           setClickPhase("route-shown");
-          await fetchAndSetStops(origin, destination, null, effectiveMilesFor(newMode), newMode, stopsToRestore);
+          await fetchAndSetStops(origin, destination, null, effectiveMilesFor(newMode), newMode, data.route.geometry.coordinates, stopsToRestore);
 
           if (stopsToRestore.length === 0) {
             setSelectedStops([]);
@@ -1255,6 +1299,7 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
             stopLoading={stopLoading}
             stopError={stopError}
             onSelectStop={handleSelectStop}
+            onFocusStop={handleFocusStop}
             activeCategories={activeCategories}
             onToggleCategory={handleToggleCategory}
             onToggleAllCategories={handleToggleAllCategories}

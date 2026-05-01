@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { StopSuggestion, TravelMode } from "../lib/api";
 import type { PlaceCategory } from "../data/places";
 import { CATEGORY_COLORS } from "../data/places";
@@ -50,6 +51,7 @@ interface VerdictPanelProps {
   stopLoading?: boolean;
   stopError?: string | null;
   onSelectStop?: ((stop: StopSuggestion) => void) | null;
+  onFocusStop?: ((stop: StopSuggestion) => void) | null;
   detourLoading?: boolean;
   showingDetour?: boolean;
   shortestRoute?: {
@@ -88,6 +90,7 @@ export function VerdictPanel({
   stopLoading = false,
   stopError = null,
   onSelectStop = null,
+  onFocusStop = null,
   detourLoading = false,
   showingDetour = false,
   shortestRoute = null,
@@ -100,6 +103,18 @@ export function VerdictPanel({
   showAllStops = false,
   onToggleShowAll = null,
 }: VerdictPanelProps) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyShareLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Clipboard unavailable — silently no-op
+    }
+  };
+
   if (error) {
     const isNoRoute = /no route|not found|unreachable|404/i.test(error);
     const isNetwork = /unable to connect|internet connection/i.test(error);
@@ -149,21 +164,51 @@ export function VerdictPanel({
       aria-label="Route check result"
       aria-live="polite"
     >
-      {showingDetour && selectedStops.length > 0 ? (
-        <div className="verdict-panel__detour-header">
-          <h3 className="verdict-panel__title">
-            {selectedStops.length === 1
-              ? `Via ${selectedStops[0].name}`
-              : `Via ${selectedStops.length} stops`}
-          </h3>
-          {!isLoading && <span className={statusClass}>{statusText}</span>}
-        </div>
-      ) : (
-        <div className="verdict-panel__head">
-          <span className="verdict-panel__label">Route</span>
-          {!isLoading && <span className={statusClass}>{statusText}</span>}
-        </div>
-      )}
+      {(() => {
+        const headerActions = (
+          <div className="verdict-panel__header-actions">
+            <button
+              type="button"
+              className="verdict-panel__header-link"
+              onClick={handleCopyShareLink}
+              aria-live="polite"
+            >
+              {copied ? "Copied" : "Share"}
+            </button>
+            <button
+              type="button"
+              className="verdict-panel__header-link"
+              onClick={onReset}
+            >
+              Reset
+            </button>
+          </div>
+        );
+
+        if (showingDetour && selectedStops.length > 0) {
+          return (
+            <div className="verdict-panel__detour-header">
+              <h3 className="verdict-panel__title">
+                {selectedStops.length === 1
+                  ? `Via ${selectedStops[0].name}`
+                  : `Via ${selectedStops.length} stops`}
+              </h3>
+              <div className="verdict-panel__head-row">
+                {!isLoading && <span className={statusClass}>{statusText}</span>}
+                {headerActions}
+              </div>
+            </div>
+          );
+        }
+
+        return (
+          <div className="verdict-panel__head">
+            <span className="verdict-panel__label">Route</span>
+            {!isLoading && <span className={statusClass}>{statusText}</span>}
+            {headerActions}
+          </div>
+        );
+      })()}
 
       {isLoading ? (
         <p className="verdict-panel__loading">Computing route…</p>
@@ -172,13 +217,6 @@ export function VerdictPanel({
           <span className="verdict-panel__metric">{distance_miles.toFixed(1)} mi</span>
           <span className="verdict-panel__metric-sep">·</span>
           <span className="verdict-panel__metric">{formatDuration(duration_seconds)}</span>
-          <button
-            type="button"
-            className="verdict-panel__reset"
-            onClick={onReset}
-          >
-            Reset
-          </button>
         </div>
       )}
 
@@ -205,18 +243,26 @@ export function VerdictPanel({
       {/* Itinerary summary — compact route-ordered list of selections */}
       {selectedStops.length > 0 && !isLoading && (
         <div className="itinerary-summary">
-          <p className="itinerary-summary__label">Your route</p>
+          <p className="itinerary-summary__label">Itinerary</p>
           <ol className="itinerary-summary__list">
             {selectedStops.map((stop, i) => (
-              <li key={stop.name}>
+              <li key={stop.name} className="itinerary-summary__row">
                 <button
                   type="button"
                   className="itinerary-summary__item"
-                  onClick={() => onSelectStop?.(stop)}
+                  onClick={() => onFocusStop?.(stop)}
                 >
                   <span className="itinerary-summary__order">{i + 1}</span>
                   <span className="itinerary-summary__name">{stop.name}</span>
                   <span className="itinerary-summary__badge">{getCategoryLabel(stop.category)}</span>
+                </button>
+                <button
+                  type="button"
+                  className="itinerary-summary__remove"
+                  onClick={() => onSelectStop?.(stop)}
+                  aria-label={`Remove ${stop.name}`}
+                >
+                  ×
                 </button>
               </li>
             ))}
