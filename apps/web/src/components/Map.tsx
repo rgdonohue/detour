@@ -443,7 +443,6 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
       category: PlaceCategory | null,
       currentMiles: number,
       currentMode: TravelMode,
-      routeCoordinates: number[][] | null = null,
       persistedStops: StopSuggestion[] = [],
     ): Promise<StopSuggestion[]> => {
       stopSuggestControllerRef.current?.abort();
@@ -461,7 +460,6 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
           currentMiles,
           currentMode,
           signal,
-          routeCoordinates ?? undefined,
         );
         if (signal.aborted) return [];
         const stops = res.stops ?? [];
@@ -525,7 +523,7 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
       fitRouteBounds(routeData.route.geometry.coordinates);
 
       setClickPhase("route-shown");
-      return fetchAndSetStops(originCoord, destinationCoord, null, effectiveMilesFor(currentMode), currentMode, routeData.route.geometry.coordinates);
+      return fetchAndSetStops(originCoord, destinationCoord, null, effectiveMilesFor(currentMode), currentMode);
     },
     [
       fetchAndSetStops,
@@ -1153,7 +1151,7 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
           );
           fitRouteBounds(data.route.geometry.coordinates);
           setClickPhase("route-shown");
-          await fetchAndSetStops(origin, destination, null, effectiveMilesFor(newMode), newMode, data.route.geometry.coordinates, stopsToRestore);
+          await fetchAndSetStops(origin, destination, null, effectiveMilesFor(newMode), newMode, stopsToRestore);
 
           if (stopsToRestore.length === 0) {
             setSelectedStops([]);
