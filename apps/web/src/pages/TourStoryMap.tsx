@@ -193,15 +193,17 @@ export function TourStoryMap() {
 
   useEffect(() => {
     if (!slug) return;
+    let cancelled = false;
     dispatch({ status: "loading" });
     getTour(slug)
-      .then((tour) => dispatch({ status: "ok", tour }))
-      .catch((e: unknown) =>
-        dispatch({
+      .then((tour) => { if (!cancelled) dispatch({ status: "ok", tour }); })
+      .catch((e: unknown) => {
+        if (!cancelled) dispatch({
           status: "error",
           message: e instanceof Error ? e.message : "Failed to load tour",
-        })
-      );
+        });
+      });
+    return () => { cancelled = true; };
   }, [slug]);
 
   // ── Map init + scroll listener ──────────────────────────────────────────────
