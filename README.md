@@ -6,6 +6,8 @@
 
 Detour is a Santa Fe-first routing prototype for building place-aware routes: start with the shortest walking or driving path, surface curated nearby stops, and show the distance/time cost of making the route more interesting. It is built as a small full-stack product slice, with real routing calls, shareable state, curated POI data, and a tour-viewing surface.
 
+Go to the [Live Map](https://detour.smallbatchmaps.com/)
+
 ## Why this exists
 
 Detour is now aimed first at people who create visitor experiences: professional tour guides, hotel concierges, and tourism bureaus. Visitors are the downstream users who receive, preview, or follow the routes those professionals shape.
