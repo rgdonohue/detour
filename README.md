@@ -143,12 +143,12 @@ apps/web   -> frontend
 apps/api   -> backend
 ```
 
-See [docs/DEPLOY.md](docs/DEPLOY.md) for deployment details.
+See [docs/DEPLOY.md](docs/DEPLOY.md) for deployment details and the `tour_admin.py` ops CLI for listing/pruning saved tours on the production Volume.
 
 ## Current limitations
 
 - No text search or geocoder for route endpoints.
-- No auth, accounts, saved tours, or durable user-owned route persistence.
+- No auth or accounts. Saved tours are anonymous-by-slug — anyone with the URL can view, no personal history surface yet.
 - Current POI surfaces use curated/static Santa Fe data rather than external search APIs.
 - The product and dataset are seeded for Santa Fe first.
 - Without a valid OpenRouteService API key, the backend returns mock responses for development.
@@ -161,4 +161,4 @@ See [docs/UX_DIRECTION.md](docs/UX_DIRECTION.md) for personas, feature brainstor
 
 ## Status
 
-Active Santa Fe-first prototype. Build and Explore are functional map surfaces, Tour is an exploratory scrollytelling surface, and the next obvious product gaps are search, auth, and persistence rather than core routing.
+Active Santa Fe-first prototype. Build and Explore are functional map surfaces, Tour is an exploratory scrollytelling surface. User-built tours persist via `POST /api/tours` and are shareable as `/tours/<slug>` permalinks with QR codes. The next obvious product gaps are search, auth, and a personal-history surface for the tours you've saved.
