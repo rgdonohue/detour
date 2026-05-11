@@ -16,6 +16,7 @@ from config import settings
 from conversion import miles_to_meters
 from ors_client import get_isodistance, get_shortest_route
 from poi_client import get_pois_along_route
+from saved_tours import save_tour
 from stop_selector import ORS_ELIGIBLE_CATEGORIES, get_all_places_geojson, select_from_ors, select_from_static
 from tour_loader import get_tour, list_tours
 
@@ -362,8 +363,65 @@ def get_tours():
 
 @app.get("/api/tours/{slug}")
 def get_tour_by_slug(slug: str):
-    """Return a full tour definition by slug, including route geometry and stops."""
+    """Return a full tour definition by slug, including route geometry and stops.
+    Resolves curated gallery tours first, then user-saved tours on disk."""
     tour = get_tour(slug)
     if tour is None:
         raise HTTPException(status_code=404, detail=f"Tour not found: {slug}")
     return tour
+
+
+class TourStopBody(BaseModel):
+    order: int
+    name: str = Field(min_length=1, max_length=200)
+    coordinates: tuple[float, float]
+    category: Literal["history", "art", "scenic", "culture", "civic"]
+    description: str = Field(default="", max_length=2000)
+    poi_id: str | None = None
+
+    @field_validator("coordinates")
+    @classmethod
+    def validate_coordinates(cls, v: tuple[float, float]) -> tuple[float, float]:
+        lon, lat = v
+        if not (-180 <= lon <= 180) or not (-90 <= lat <= 90):
+            raise ValueError(f"Coordinate out of range: [{lon}, {lat}]")
+        return v
+
+
+class TourRouteGeometry(BaseModel):
+    type: Literal["LineString"]
+    coordinates: list[list[float]] = Field(min_length=2, max_length=20000)
+
+
+class TourRouteFeatureBody(BaseModel):
+    type: Literal["Feature"]
+    geometry: TourRouteGeometry
+    properties: dict = Field(default_factory=dict)
+
+
+class SaveTourBody(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    tagline: str = Field(default="", max_length=200)
+    description: str = Field(default="", max_length=2000)
+    mode: Literal["walk", "drive"]
+    distance_miles: float = Field(ge=0, le=500)
+    duration_minutes: int = Field(ge=0, le=10000)
+    route: TourRouteFeatureBody
+    stops: list[TourStopBody] = Field(min_length=1, max_length=20)
+
+
+@app.post("/api/tours")
+def save_user_tour(body: SaveTourBody):
+    """Persist a user-built tour and return its assigned slug.
+
+    The frontend POSTs the same TourDefinition shape it would otherwise
+    have stashed in sessionStorage, gets back a slug, and navigates to
+    /tours/<slug> — the existing GET handler then serves it back.
+    """
+    payload = body.model_dump()
+    try:
+        slug = save_tour(payload)
+    except Exception:
+        logger.exception("Failed to save user tour")
+        raise HTTPException(status_code=500, detail="Could not save tour")
+    return {"slug": slug, "url": f"/tours/{slug}"}

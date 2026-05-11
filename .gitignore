@@ -5,3 +5,4 @@ __pycache__
 .venv
 .python-version
 cache/*.geojson
+apps/api/data/saved_tours/*.json

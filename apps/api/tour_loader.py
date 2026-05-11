@@ -1,7 +1,14 @@
-"""Tour loader — reads pre-authored tour JSON files at startup."""
+"""Tour loader — reads pre-authored tour JSON files at startup.
+
+Gallery tours (curated, committed) load eagerly at import time.
+User-saved tours (from POST /api/tours) are looked up on demand via
+`saved_tours.load_saved_tour`.
+"""
 import json
 import logging
 from pathlib import Path
+
+from saved_tours import load_saved_tour
 
 logger = logging.getLogger(__name__)
 
@@ -43,5 +50,11 @@ def list_tours() -> list[dict]:
 
 
 def get_tour(slug: str) -> dict | None:
-    """Return the full tour definition by slug, or None if not found."""
-    return _TOURS.get(slug)
+    """Return the full tour definition by slug, or None if not found.
+
+    Checks the curated in-memory dict first, then falls through to
+    user-saved tours on disk.
+    """
+    if slug in _TOURS:
+        return _TOURS[slug]
+    return load_saved_tour(slug)
