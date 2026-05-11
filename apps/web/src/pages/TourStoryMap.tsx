@@ -166,10 +166,15 @@ function chapterClass(
 export function TourStoryMap({ tour: tourProp }: { tour?: TourDefinition }) {
   const { slug } = useParams<{ slug: string }>();
   const location = useLocation();
-  // Map.tsx passes { from: "build" } when navigating after saving a tour, so
-  // the back button returns to /build instead of the gallery. State doesn't
-  // survive refresh — falling back to the gallery on refresh is fine.
-  const cameFromBuild = (location.state as { from?: string } | null)?.from === "build";
+  // Map.tsx passes { from: "build", buildSearch } when navigating after
+  // saving a tour. `buildSearch` is the URL query (origin, destination,
+  // via, mode, …) that lets /build restore the in-progress itinerary so
+  // the user can keep editing. Both are lost on refresh — at which point
+  // we fall back to "← Back to tours" since a fresh visitor isn't editing
+  // this tour, they're discovering it.
+  const navState = location.state as { from?: string; buildSearch?: string } | null;
+  const cameFromBuild = navState?.from === "build";
+  const buildSearch = navState?.buildSearch ?? "";
   const [state, dispatch] = useReducer(
     tourReducer,
     undefined,
@@ -534,8 +539,8 @@ export function TourStoryMap({ tour: tourProp }: { tour?: TourDefinition }) {
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
-  const backTo = cameFromBuild ? "/build" : "/tours";
-  const backLabel = cameFromBuild ? "← Back to map" : "← Back to tours";
+  const backTo = cameFromBuild ? `/build${buildSearch}` : "/tours";
+  const backLabel = cameFromBuild ? "← Continue editing" : "← Back to tours";
 
   if (state.status === "loading") {
     return (
@@ -557,7 +562,7 @@ export function TourStoryMap({ tour: tourProp }: { tour?: TourDefinition }) {
         <div className="map-error">
           {state.message}
           <Link to={backTo} style={{ marginLeft: "0.5rem" }}>
-            {cameFromBuild ? "Back to map" : "Browse tours"}
+            {cameFromBuild ? "Continue editing" : "Browse tours"}
           </Link>
         </div>
       </div>

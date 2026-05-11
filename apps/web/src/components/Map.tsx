@@ -1231,9 +1231,14 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
     try {
       // Backend assigns the slug; client-side `slug` on the payload is ignored.
       const { slug } = await saveTour(tour);
-      // `from: "build"` tells TourStoryMap to render a Back-to-map link
-      // instead of Back-to-tours. Lost on refresh by design.
-      navigate(`/tours/${slug}`, { state: { from: "build" } });
+      // `from: "build"` tells TourStoryMap to render a "Continue editing"
+      // link back to /build. `buildSearch` carries the URL-encoded route
+      // (origin, destination, via, mode, category) so /build can restore
+      // the full itinerary via parseShareableRouteState. Both lost on
+      // refresh — that's intentional; a fresh visitor isn't editing this.
+      navigate(`/tours/${slug}`, {
+        state: { from: "build", buildSearch: window.location.search },
+      });
     } catch (e) {
       setSaveTourError(e instanceof Error ? e.message : "Could not save tour");
       setSavingTour(false);
