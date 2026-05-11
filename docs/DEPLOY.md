@@ -31,6 +31,17 @@ Service-level config (optional; Railway will use these if present):
 - `ORIGIN_LAT`
 - `DEFAULT_RANGE_MILES`
 - `CACHE_TTL_HOURS`
+- `SAVED_TOURS_DIR` — Filesystem directory for user-saved tours (POST `/api/tours`). Defaults to `./data/saved_tours` inside the container. **Required for durability on Railway** — without a mounted Volume backing this path, every redeploy wipes all user-saved tours.
+
+### Saved-tour durability (Railway Volume)
+
+User-built tours are persisted as JSON files. Railway containers have ephemeral filesystems, so saved tours need a Volume to survive deploys:
+
+1. In the API service settings, add a **Volume** — e.g. mount path `/data/saved_tours`, size `1 GB`.
+2. Set the env var `SAVED_TOURS_DIR=/data/saved_tours` on the API service.
+3. Redeploy. The directory is created on first import; subsequent saves write into the Volume.
+
+A 1 GB volume holds ~500k tours at typical sizes (~2 KB each). Curated gallery tours live in `data/tours/` and are baked into the image — they don't need a volume.
 
 ## 3. Web service
 

@@ -8,6 +8,7 @@ slug isn't found in the in-memory gallery dict.
 """
 import json
 import logging
+import os
 import re
 import secrets
 from pathlib import Path
@@ -15,8 +16,14 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-_SAVED_DIR = Path(__file__).parent / "data" / "saved_tours"
+# Path is env-driven so production can point it at a mounted volume
+# (Railway containers have ephemeral filesystems — without a volume,
+# every deploy wipes user-saved tours). Defaults to a repo-relative
+# path so dev and tests just work.
+_DEFAULT_SAVED_DIR = Path(__file__).parent / "data" / "saved_tours"
+_SAVED_DIR = Path(os.environ.get("SAVED_TOURS_DIR", str(_DEFAULT_SAVED_DIR)))
 _SAVED_DIR.mkdir(parents=True, exist_ok=True)
+logger.info("Saved tours dir: %s", _SAVED_DIR)
 
 # 8-char URL-safe slug (token_urlsafe(6) → 8 chars from [A-Za-z0-9_-]).
 # Validated on read so the slug can't traverse the filesystem.
