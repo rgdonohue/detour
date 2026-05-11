@@ -178,8 +178,9 @@ export function VerdictPanel({
               className="verdict-panel__header-link"
               onClick={handleCopyShareLink}
               aria-live="polite"
+              title="Copy an editor link with your current stops"
             >
-              {copied ? "Copied" : "Share"}
+              {copied ? "Copied" : "Copy link"}
             </button>
             <button
               type="button"
