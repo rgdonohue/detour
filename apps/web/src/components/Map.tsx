@@ -1231,7 +1231,9 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
     try {
       // Backend assigns the slug; client-side `slug` on the payload is ignored.
       const { slug } = await saveTour(tour);
-      navigate(`/tours/${slug}`);
+      // `from: "build"` tells TourStoryMap to render a Back-to-map link
+      // instead of Back-to-tours. Lost on refresh by design.
+      navigate(`/tours/${slug}`, { state: { from: "build" } });
     } catch (e) {
       setSaveTourError(e instanceof Error ? e.message : "Could not save tour");
       setSavingTour(false);

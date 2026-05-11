@@ -1,8 +1,9 @@
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef, useState, useReducer } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, useLocation, Link } from "react-router-dom";
 import { getTour } from "../lib/tourApi";
+import { ShareModal } from "../components/ShareModal";
 import type { TourDefinition, PlaceCategory } from "../types/tour";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -164,12 +165,18 @@ function chapterClass(
 
 export function TourStoryMap({ tour: tourProp }: { tour?: TourDefinition }) {
   const { slug } = useParams<{ slug: string }>();
+  const location = useLocation();
+  // Map.tsx passes { from: "build" } when navigating after saving a tour, so
+  // the back button returns to /build instead of the gallery. State doesn't
+  // survive refresh — falling back to the gallery on refresh is fine.
+  const cameFromBuild = (location.state as { from?: string } | null)?.from === "build";
   const [state, dispatch] = useReducer(
     tourReducer,
     undefined,
     (): LoadState => tourProp ? { status: "ok", tour: tourProp } : { status: "loading" },
   );
   const [activeChapterIndex, setActiveChapterIndex] = useState<number>(0);
+  const [shareOpen, setShareOpen] = useState(false);
 
   // Narrative
   const chapterRefs = useRef<(HTMLElement | null)[]>([]);
@@ -527,8 +534,8 @@ export function TourStoryMap({ tour: tourProp }: { tour?: TourDefinition }) {
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
-  const backTo = tourProp ? "/build" : "/tours";
-  const backLabel = tourProp ? "← Back to map" : "← Back to tours";
+  const backTo = cameFromBuild ? "/build" : "/tours";
+  const backLabel = cameFromBuild ? "← Back to map" : "← Back to tours";
 
   if (state.status === "loading") {
     return (
@@ -550,7 +557,7 @@ export function TourStoryMap({ tour: tourProp }: { tour?: TourDefinition }) {
         <div className="map-error">
           {state.message}
           <Link to={backTo} style={{ marginLeft: "0.5rem" }}>
-            {tourProp ? "Back to map" : "Browse tours"}
+            {cameFromBuild ? "Back to map" : "Browse tours"}
           </Link>
         </div>
       </div>
@@ -567,6 +574,13 @@ export function TourStoryMap({ tour: tourProp }: { tour?: TourDefinition }) {
       <Link to={backTo} className="story-map__back-link">
         {backLabel}
       </Link>
+      <button
+        type="button"
+        className="story-map__share-link"
+        onClick={() => setShareOpen(true)}
+      >
+        Share
+      </button>
 
       <div className="story-map__map-container">
         <div ref={mapContainerRef} className="map-container" />
@@ -678,6 +692,14 @@ export function TourStoryMap({ tour: tourProp }: { tour?: TourDefinition }) {
           </div>
         </section>
       </div>
+
+      {shareOpen && (
+        <ShareModal
+          url={window.location.href}
+          title={tour.name}
+          onClose={() => setShareOpen(false)}
+        />
+      )}
     </div>
   );
 }
