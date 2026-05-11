@@ -43,6 +43,30 @@ User-built tours are persisted as JSON files. Railway containers have ephemeral 
 
 A 1 GB volume holds ~500k tours at typical sizes (~2 KB each). Curated gallery tours live in `data/tours/` and are baked into the image — they don't need a volume.
 
+### Admin: list / prune saved tours
+
+`apps/api/tour_admin.py` is a small ops CLI for inspecting and cleaning up the saved-tours Volume. It reads `SAVED_TOURS_DIR` from the environment, so the same script works locally (against `./data/saved_tours/`) and inside the Railway container (against the mounted Volume).
+
+**Run against prod** (one-off command):
+
+```bash
+railway ssh --service api -- python tour_admin.py stats
+railway ssh --service api -- python tour_admin.py list --older-than 90
+railway ssh --service api -- python tour_admin.py prune --older-than 365 --dry-run
+```
+
+**Or interactively:**
+
+```bash
+railway ssh --service api
+# inside the container:
+python tour_admin.py list
+python tour_admin.py rm <slug> --yes
+python tour_admin.py prune --older-than 180 --yes
+```
+
+Subcommands: `list`, `stats`, `rm <slug>`, `prune --older-than DAYS`. Destructive commands (`rm`, `prune`) require a confirmation prompt or `--yes` for non-interactive use. The script validates slug shape on `rm`, so it can't be coerced into deleting arbitrary files.
+
 ## 3. Web service
 
 - **Root Directory:** `apps/web`
