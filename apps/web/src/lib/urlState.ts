@@ -59,7 +59,7 @@ export function parseShareableRouteState(): ShareableRouteState {
     destination: parseCoord(params.get("destination")),
     category: parseCategories(params.get("category")),
     via: parseVia(params.get("via")),
-    mode: params.get("mode") === "walk" ? "walk" : "drive",
+    mode: params.get("mode") === "drive" ? "drive" : "walk",
   };
 }
 
