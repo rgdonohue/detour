@@ -218,6 +218,32 @@ export async function suggestStop(
   return data as SuggestStopResponse;
 }
 
+export interface SaveTourResponse {
+  slug: string;
+  url: string;
+}
+
+/**
+ * Persist a user-built tour. Returns the assigned slug — backend is
+ * authoritative for slug assignment, so any client-side `slug` field
+ * on the payload is ignored.
+ */
+export async function saveTour(
+  tour: unknown,
+  signal?: AbortSignal,
+): Promise<SaveTourResponse> {
+  const res = await fetchWithTimeout(`${API_BASE}/tours`, ROUTE_TIMEOUT_MS, signal, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(tour),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.detail ?? `Save tour failed: ${res.status}`);
+  }
+  return res.json();
+}
+
 export async function getRoute(
   destLon: number,
   destLat: number,

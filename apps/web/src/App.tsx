@@ -6,7 +6,6 @@ import { AppHeader } from "./components/AppHeader";
 import { AppFooter } from "./components/AppFooter";
 import { TourGallery } from "./pages/TourGallery";
 import { TourStoryMap } from "./pages/TourStoryMap";
-import { TourPreview } from "./pages/TourPreview";
 import { ExplorePage } from "./pages/ExplorePage";
 import { parseShareableRouteState } from "./lib/urlState";
 import type { TravelMode } from "./lib/api";
@@ -43,7 +42,6 @@ function App() {
       <Route path="/" element={<ExplorePage />} />
       <Route path="/build" element={<BuilderPage />} />
       <Route path="/tours" element={<TourGallery />} />
-      <Route path="/tours/preview" element={<TourPreview />} />
       <Route path="/tours/:slug" element={<TourStoryMap />} />
     </Routes>
   );

@@ -68,6 +68,8 @@ interface VerdictPanelProps {
   showAllStops?: boolean;
   onToggleShowAll?: (() => void) | null;
   onPlayTour?: (() => void) | null;
+  savingTour?: boolean;
+  saveTourError?: string | null;
 }
 
 function formatDuration(seconds: number): string {
@@ -104,6 +106,8 @@ export function VerdictPanel({
   showAllStops = false,
   onToggleShowAll = null,
   onPlayTour = null,
+  savingTour = false,
+  saveTourError = null,
 }: VerdictPanelProps) {
   const [copied, setCopied] = useState(false);
 
@@ -235,9 +239,16 @@ export function VerdictPanel({
             type="button"
             className="verdict-panel__btn-primary"
             onClick={onPlayTour}
+            disabled={savingTour}
+            aria-busy={savingTour}
           >
-            Preview tour
+            {savingTour ? "Saving…" : "Preview tour"}
           </button>
+          {saveTourError && (
+            <p className="verdict-panel__save-error" role="alert">
+              {saveTourError}
+            </p>
+          )}
         </div>
       )}
 

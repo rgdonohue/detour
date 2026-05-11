@@ -1512,7 +1512,7 @@ h1, h2, h3 {
   background: rgba(44, 24, 16, 0.05);
 }
 
-/* Primary CTA: filled terracotta (e.g. "▶ Play tour") */
+/* Primary CTA: filled terracotta (e.g. "Preview tour") */
 .verdict-panel__play-cta {
   margin: 0.75rem 0 0.125rem;
 }
@@ -1535,6 +1535,17 @@ h1, h2, h3 {
 
 .verdict-panel__btn-primary:hover {
   background: #b04e20;
+}
+
+.verdict-panel__btn-primary:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.verdict-panel__save-error {
+  margin: 0.5rem 0 0;
+  font-size: 0.8125rem;
+  color: #b04e20;
 }
 
 /* Ghost action: text-only (e.g. "Reset map") */

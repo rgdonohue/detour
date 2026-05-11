@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import {
   getConfig,
   getRoute,
+  saveTour,
   suggestStop,
   type Config,
   type RouteResponse,
@@ -122,6 +123,8 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
   const [showRings, setShowRings] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const [showAllStops, setShowAllStops] = useState(false);
+  const [savingTour, setSavingTour] = useState(false);
+  const [saveTourError, setSaveTourError] = useState<string | null>(null);
   const showRingsRef = useRef(false);
   showRingsRef.current = showRings;
   const showAllStopsRef = useRef(false);
@@ -1211,7 +1214,8 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
     if (modeChangeRef) modeChangeRef.current = handleModeChange;
   }, [modeChangeRef, handleModeChange]);
 
-  const handlePlayTour = useCallback(() => {
+  const handlePlayTour = useCallback(async () => {
+    if (savingTour) return;
     if (!showingDetour || !detourResult || selectedStops.length === 0 || !origin || !destination) return;
     const tour = buildTourFromState({
       origin,
@@ -1222,9 +1226,17 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
       duration_seconds: detourResult.duration_seconds,
       stops: selectedStops,
     });
-    sessionStorage.setItem("detour:preview-tour", JSON.stringify(tour));
-    navigate("/tours/preview");
-  }, [showingDetour, detourResult, selectedStops, origin, destination, mode, navigate]);
+    setSavingTour(true);
+    setSaveTourError(null);
+    try {
+      // Backend assigns the slug; client-side `slug` on the payload is ignored.
+      const { slug } = await saveTour(tour);
+      navigate(`/tours/${slug}`);
+    } catch (e) {
+      setSaveTourError(e instanceof Error ? e.message : "Could not save tour");
+      setSavingTour(false);
+    }
+  }, [savingTour, showingDetour, detourResult, selectedStops, origin, destination, mode, navigate]);
 
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -1334,6 +1346,8 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
             showAllStops={showAllStops}
             onToggleShowAll={() => setShowAllStops((prev) => !prev)}
             onPlayTour={showingDetour && detourResult && selectedStops.length >= 1 ? handlePlayTour : null}
+            savingTour={savingTour}
+            saveTourError={saveTourError}
           />
         )}
       </aside>
