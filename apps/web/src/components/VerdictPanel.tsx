@@ -228,7 +228,7 @@ export function VerdictPanel({
         </p>
       )}
 
-      {/* Play tour CTA — primary action when a detour route with stops exists */}
+      {/* Preview tour CTA — primary action when a detour route with stops exists */}
       {!isLoading && !error && selectedStops.length >= 1 && onPlayTour && (
         <div className="verdict-panel__play-cta">
           <button
@@ -236,7 +236,7 @@ export function VerdictPanel({
             className="verdict-panel__btn-primary"
             onClick={onPlayTour}
           >
-            ▶ Play tour
+            Preview tour
           </button>
         </div>
       )}
