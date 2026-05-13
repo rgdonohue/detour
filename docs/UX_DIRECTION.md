@@ -125,6 +125,49 @@ Detour is a Santa Fe walking/driving tour builder. Users click origin, click des
 
 **Recommendation for demo:** C6. The current URL state is already good. Add a "Share this tour" button that hits a `/api/share` endpoint returning a short hash. Store in a flat JSON file or SQLite for the demo. Zero-auth, zero-infrastructure, and impressive.
 
+**Status (as of this writing):** The C2/C3/C6 thread is shipped. `POST /api/tours` writes a JSON file under `SAVED_TOURS_DIR` (Railway Volume in prod), `GET /api/tours/<slug>` resolves both curated gallery and user-saved tours, and the frontend Preview-tour CTA POSTs and navigates to `/tours/<slug>`. The Tour story-map has a QR + copy-link share modal. The remaining gap on this surface is the personal-history piece below.
+
+### 3C-followup: Personal-history surface ("Your tours") — open
+
+**Status:** Open / deferred. Backend persistence shipped; the user-facing history view is the missing piece.
+
+**Problem.** A user builds a tour today, closes the tab, comes back tomorrow. The slug exists on the server but the user has no way to find it from inside the app. Their options are: remember the slug (unrealistic), keep the URL in an external browser bookmark, or rebuild from scratch.
+
+The personas this matters most for are Diana (concierge — builds for guests all day, wants yesterday's itineraries one click away) and Maria (guide — trip planning across multiple groups). Jake (one-off tourist) doesn't need it.
+
+**Proposed solution: device-local list via localStorage.**
+
+- After every successful `saveTour()` on the Build page, append `{ slug, name, mode, stops, savedAt }` to `localStorage["detour:my-tours"]`.
+- Render a "Your tours" section sourced from that list. Each card: name, mode + stop count + age, click → opens `/tours/<slug>`.
+- "Forget" affordance per card removes the entry from localStorage. The saved tour on the server remains untouched — the slug still resolves for anyone with the URL.
+
+**What it deliberately isn't:**
+
+- Not server-side history. No accounts, no cross-device sync.
+- Not a way to recover tours saved on a different device or in incognito.
+- Not a way to mutate or delete the saved tour itself (only forget it locally).
+
+This preserves the anonymous-by-slug model and adds zero backend surface.
+
+**Implementation sketch (~30–60 min, 1–2 commits):**
+
+- `apps/web/src/lib/savedTours.ts` (new) — small module exporting `recordSavedTour()`, `listSavedTours()`, `forgetTour(slug)`, with a localStorage key and a JSON shape. Defensive parsing for forward compatibility; small history cap to avoid runaway growth.
+- `apps/web/src/components/Map.tsx` — call `recordSavedTour()` right after `saveTour()` returns a slug, before navigating.
+- `apps/web/src/pages/TourGallery.tsx` — read `listSavedTours()` on mount, render a "Your tours" section above (or below) the curated gallery.
+- Small CSS pass for the new section.
+
+**Open decisions before building:**
+
+1. **Where does the section render?** `/tours` (above the curated gallery)? `/build` (when no route is loaded)? Both?
+2. **History cap?** Keep forever, or cap at the last N (e.g. 20)?
+3. **Per-card "Forget" button** vs. just a global "Clear history"?
+4. **Verify slugs on load?** Ping `GET /api/tours/<slug>` for each entry and silently drop dead ones, or trust the list and let the user clean up manually?
+
+**Adjacent deferred work** (don't bundle, but worth knowing about):
+
+- **"Save & share from Build"** — a shortcut that POSTs in the background and pops the QR share modal without leaving the editor. Touches the same `handlePlayTour` and `ShareModal` as this feature; could pair naturally if both ship in the same sprint.
+- **Print one-pager** (3D / D1) — `@media print` stylesheet for the tour page so Diana can print a stop list with descriptions. Browser-native "Save as PDF" covers the export use case for free.
+
 ### 3D. Export Formats
 
 **What:** Get the tour out of the app and into the real world.
