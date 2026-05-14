@@ -1,10 +1,8 @@
 """ORS POI client — queries POIs along a route corridor."""
 import logging
 
-import httpx
-
 from config import settings
-from ors_client import ORS_BASE
+from ors_client import ORS_BASE, get_http_client
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -62,21 +60,21 @@ async def get_pois_along_route(
     }
 
     try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                _POI_URL,
-                headers={"Authorization": settings.ORS_API_KEY},
-                json=body,
-                timeout=5.0,
+        logger.info("ORS call pois category=%s buffer_m=%d", category, buffer_meters)
+        resp = await get_http_client().post(
+            _POI_URL,
+            headers={"Authorization": settings.ORS_API_KEY},
+            json=body,
+            timeout=5.0,
+        )
+        if not resp.is_success:
+            logger.warning(
+                "ORS POI request failed: %s — body: %s",
+                resp.status_code,
+                resp.text[:500],
             )
-            if not resp.is_success:
-                logger.warning(
-                    "ORS POI request failed: %s — body: %s",
-                    resp.status_code,
-                    resp.text[:500],
-                )
-                return []
-            data = resp.json()
+            return []
+        data = resp.json()
     except Exception as e:
         logger.warning("ORS POI request failed: %s", e)
         return []

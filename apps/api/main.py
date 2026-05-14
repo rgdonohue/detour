@@ -1,6 +1,7 @@
 """FastAPI backend — API shield and cache layer for Detour."""
 import asyncio
 import logging
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Literal
 
@@ -14,7 +15,9 @@ from cache import (
 )
 from config import settings
 from conversion import miles_to_meters
-from ors_client import get_isodistance, get_shortest_route
+from coords import quantize
+from inflight import dedupe_inflight
+from ors_client import aclose_client, get_isodistance, get_shortest_route
 from poi_client import get_pois_along_route
 from saved_tours import save_tour
 from stop_selector import ORS_ELIGIBLE_CATEGORIES, get_all_places_geojson, select_from_ors, select_from_static
@@ -29,7 +32,14 @@ if not logger.handlers:
     logger.addHandler(_h)
     logger.propagate = False
 
-app = FastAPI(title="Detour API")
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """Open/close the shared ORS HTTP client at process lifecycle boundaries."""
+    yield
+    await aclose_client()
+
+
+app = FastAPI(title="Detour API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -76,6 +86,39 @@ _RING_MILES: dict[str, list[float]] = {
 
 
 _area_inflight: dict[str, asyncio.Task] = {}
+_route_inflight: dict[str, asyncio.Task] = {}
+_suggest_inflight: dict[str, asyncio.Task] = {}
+
+
+def _route_dedup_key(
+    profile: str,
+    origin: tuple[float, float],
+    dest: tuple[float, float],
+    via: list[tuple[float, float]] | None,
+) -> str:
+    """Dedup key for /api/route. Inputs must already be quantized.
+    Via order is preserved — optimizeStopOrder is deterministic on the client,
+    so two users picking the same stop set produce the same ordered list."""
+    via_part = "|".join(f"{lon},{lat}" for lon, lat in (via or []))
+    return (
+        f"route_v1_{profile}_shortest_"
+        f"{origin[0]},{origin[1]}__{dest[0]},{dest[1]}__{via_part}"
+    )
+
+
+def _suggest_dedup_key(
+    profile: str,
+    origin: tuple[float, float],
+    dest: tuple[float, float],
+    category: str | None,
+    miles: float,
+) -> str:
+    """Dedup key for /api/suggest-stop GET (the form that triggers an internal
+    ORS call). POST with route_coordinates does not need dedup — no ORS call."""
+    return (
+        f"suggest_v1_{profile}_{category or 'all'}_"
+        f"{origin[0]},{origin[1]}__{dest[0]},{dest[1]}__{miles}"
+    )
 
 
 @app.get("/api/area")
@@ -89,8 +132,7 @@ async def get_area(origin: str | None = None, mode: Literal["drive", "walk"] = "
         except ValueError as e:
             raise HTTPException(status_code=400, detail=f"Invalid origin: {e}")
     else:
-        origin_lon = settings.ORIGIN_LON
-        origin_lat = settings.ORIGIN_LAT
+        origin_lon, origin_lat = quantize(settings.ORIGIN_LON, settings.ORIGIN_LAT)
 
     ring_miles = _RING_MILES.get(mode, _RING_MILES["drive"])
     distances_meters = [miles_to_meters(m) for m in ring_miles]
@@ -101,23 +143,12 @@ async def get_area(origin: str | None = None, mode: Literal["drive", "walk"] = "
     if cached:
         return cached
 
-    if cache_key in _area_inflight:
-        try:
-            return await _area_inflight[cache_key]
-        except ValueError as e:
-            msg = str(e)
-            if "rate limited" in msg.lower():
-                raise HTTPException(status_code=429, detail=msg)
-            raise HTTPException(status_code=502, detail=msg)
-        except Exception:
-            raise HTTPException(status_code=502, detail="Upstream routing error")
-
-    task: asyncio.Task = asyncio.create_task(
-        get_isodistance(origin_lon, origin_lat, distances_meters, profile)
-    )
-    _area_inflight[cache_key] = task
     try:
-        result = await task
+        result = await dedupe_inflight(
+            _area_inflight,
+            cache_key,
+            lambda: get_isodistance(origin_lon, origin_lat, distances_meters, profile),
+        )
     except ValueError as e:
         msg = str(e)
         if "rate limited" in msg.lower():
@@ -126,15 +157,15 @@ async def get_area(origin: str | None = None, mode: Literal["drive", "walk"] = "
     except Exception:
         logger.exception("ORS isochrones error")
         raise HTTPException(status_code=502, detail="Upstream routing error")
-    finally:
-        _area_inflight.pop(cache_key, None)
 
     cache_set(cache_key, result)
     return result
 
 
 def _parse_to_param(to: str) -> tuple[float, float]:
-    """Parse 'lon,lat' string. Raises ValueError if invalid."""
+    """Parse 'lon,lat' string and quantize to the shared grid (~11 m in Santa Fe).
+    Quantization happens at the API boundary so cache keys and ORS requests
+    use the same canonical coords downstream. Raises ValueError if invalid."""
     try:
         parts = to.strip().split(",")
         if len(parts) != 2:
@@ -143,7 +174,7 @@ def _parse_to_param(to: str) -> tuple[float, float]:
         lat = float(parts[1].strip())
         if not (-180 <= lon <= 180) or not (-90 <= lat <= 90):
             raise ValueError("Coordinates out of range")
-        return lon, lat
+        return quantize(lon, lat)
     except (ValueError, IndexError) as e:
         raise ValueError(f"Invalid coordinates: {e}") from e
 
@@ -170,8 +201,7 @@ async def get_route(
         except ValueError as e:
             raise HTTPException(status_code=400, detail=f"Invalid origin: {e}")
     else:
-        origin_lon = settings.ORIGIN_LON
-        origin_lat = settings.ORIGIN_LAT
+        origin_lon, origin_lat = quantize(settings.ORIGIN_LON, settings.ORIGIN_LAT)
 
     via_coords: list[tuple[float, float]] = []
     for entry in (via or []):
@@ -182,15 +212,22 @@ async def get_route(
             raise HTTPException(status_code=400, detail=f"Invalid via: {e}")
 
     profile = _mode_to_profile(mode)
+    dedup_key = _route_dedup_key(
+        profile, (origin_lon, origin_lat), (dest_lon, dest_lat), via_coords or None
+    )
     try:
-        result = await get_shortest_route(
-            origin_lon,
-            origin_lat,
-            dest_lon,
-            dest_lat,
-            limit_miles=limit_miles,
-            via_coords=via_coords or None,
-            profile=profile,
+        result = await dedupe_inflight(
+            _route_inflight,
+            dedup_key,
+            lambda: get_shortest_route(
+                origin_lon,
+                origin_lat,
+                dest_lon,
+                dest_lat,
+                limit_miles=limit_miles,
+                via_coords=via_coords or None,
+                profile=profile,
+            ),
         )
     except ValueError as e:
         msg = str(e)
@@ -228,13 +265,23 @@ async def suggest_stop(
     limit_miles = miles if miles is not None else settings.DEFAULT_RANGE_MILES
 
     suggest_profile = _mode_to_profile(mode)
+    dedup_key = _suggest_dedup_key(
+        suggest_profile, (origin_lon, origin_lat), (dest_lon, dest_lat),
+        category, limit_miles,
+    )
     try:
-        route_data = await get_shortest_route(
-            origin_lon, origin_lat, dest_lon, dest_lat, limit_miles=limit_miles,
-            profile=suggest_profile,
+        route_data = await dedupe_inflight(
+            _suggest_inflight,
+            dedup_key,
+            lambda: get_shortest_route(
+                origin_lon, origin_lat, dest_lon, dest_lat, limit_miles=limit_miles,
+                profile=suggest_profile,
+            ),
         )
     except ValueError as e:
         msg = str(e)
+        if "rate limited" in msg.lower():
+            raise HTTPException(status_code=429, detail=msg)
         if "no route" in msg.lower():
             raise HTTPException(status_code=404, detail=msg)
         raise HTTPException(status_code=502, detail=msg)

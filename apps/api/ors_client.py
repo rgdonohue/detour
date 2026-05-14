@@ -1,4 +1,8 @@
-"""OpenRouteService API client — isochrones and directions."""
+"""OpenRouteService API client — isochrones and directions.
+
+Uses a module-level httpx.AsyncClient with connection pooling so every ORS
+call doesn't pay TLS handshake. Close via aclose_client() on FastAPI shutdown.
+"""
 import logging
 from typing import Any
 
@@ -8,8 +12,32 @@ from config import settings
 from conversion import miles_to_meters
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+# Match poi_client/main: app loggers propagate to root at WARNING, so INFO is dropped.
+if not logger.handlers:
+    _h = logging.StreamHandler()
+    _h.setFormatter(logging.Formatter("%(levelname)s:%(name)s:%(message)s"))
+    logger.addHandler(_h)
+    logger.propagate = False
 
 ORS_BASE = "https://api.openrouteservice.org"
+
+# One shared client for all ORS traffic (directions, isochrones, POIs).
+# Limits sit comfortably above expected concurrent traffic for a single
+# Railway instance; the bottleneck is ORS's own quota, not connection count.
+_TIMEOUT = httpx.Timeout(connect=3.0, read=15.0, write=5.0, pool=2.0)
+_LIMITS = httpx.Limits(max_connections=50, max_keepalive_connections=20)
+_client = httpx.AsyncClient(timeout=_TIMEOUT, limits=_LIMITS)
+
+
+def get_http_client() -> httpx.AsyncClient:
+    """Module-level ORS HTTP client. Shared by ors_client and poi_client."""
+    return _client
+
+
+async def aclose_client() -> None:
+    """Close the shared client. Wire to FastAPI shutdown."""
+    await _client.aclose()
 
 
 def _mock_isodistance_geojson(lon: float, lat: float, distances_meters: list[float]) -> dict:
@@ -83,25 +111,25 @@ async def get_isodistance(
         logger.warning("ORS_API_KEY not set — returning mock isodistance GeoJSON")
         return _mock_isodistance_geojson(lon, lat, distances_meters)
 
-    async with httpx.AsyncClient() as client:
-        resp = await client.post(
-            f"{ORS_BASE}/v2/isochrones/{profile}",
-            headers={"Authorization": settings.ORS_API_KEY},
-            json={
-                "locations": [[lon, lat]],
-                "range": [int(d) for d in distances_meters],
-                "range_type": "distance",
-                "units": "m",
-                "smoothing": 25,
-            },
-            timeout=15.0,
-        )
+    logger.info("ORS call isochrones profile=%s lon=%.4f lat=%.4f ranges=%s",
+                profile, lon, lat, [int(d) for d in distances_meters])
+    resp = await _client.post(
+        f"{ORS_BASE}/v2/isochrones/{profile}",
+        headers={"Authorization": settings.ORS_API_KEY},
+        json={
+            "locations": [[lon, lat]],
+            "range": [int(d) for d in distances_meters],
+            "range_type": "distance",
+            "units": "m",
+            "smoothing": 25,
+        },
+    )
 
-        if resp.status_code == 401:
-            raise ValueError("ORS API key invalid or expired")
-        if resp.status_code == 429:
-            raise ValueError("ORS rate limited")
-        resp.raise_for_status()
+    if resp.status_code == 401:
+        raise ValueError("ORS API key invalid or expired")
+    if resp.status_code == 429:
+        raise ValueError("ORS rate limited")
+    resp.raise_for_status()
 
     data = resp.json()
     features = data.get("features", [])
@@ -152,26 +180,26 @@ async def get_shortest_route(
             via_coords,
         )
 
-    async with httpx.AsyncClient() as client:
-        resp = await client.post(
-            f"{ORS_BASE}/v2/directions/{profile}/geojson",
-            headers={"Authorization": settings.ORS_API_KEY},
-            json={
-                "coordinates": coordinates,
-                "preference": "shortest",
-            },
-            timeout=15.0,
-        )
+    logger.info("ORS call directions profile=%s n_coords=%d via=%d",
+                profile, len(coordinates), len(via_coords or []))
+    resp = await _client.post(
+        f"{ORS_BASE}/v2/directions/{profile}/geojson",
+        headers={"Authorization": settings.ORS_API_KEY},
+        json={
+            "coordinates": coordinates,
+            "preference": "shortest",
+        },
+    )
 
-        if resp.status_code == 401:
-            raise ValueError("ORS API key invalid or expired")
-        if resp.status_code == 429:
-            raise ValueError("ORS rate limited")
-        if resp.status_code == 404:
-            raise ValueError("No route found")
-        if resp.status_code >= 500:
-            raise ValueError("ORS upstream error")
-        resp.raise_for_status()
+    if resp.status_code == 401:
+        raise ValueError("ORS API key invalid or expired")
+    if resp.status_code == 429:
+        raise ValueError("ORS rate limited")
+    if resp.status_code == 404:
+        raise ValueError("No route found")
+    if resp.status_code >= 500:
+        raise ValueError("ORS upstream error")
+    resp.raise_for_status()
 
     data = resp.json()
     features = data.get("features", [])
