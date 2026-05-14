@@ -45,7 +45,6 @@ def _clear_inflight_and_cache(monkeypatch):
     so cache hits in subsequent tests don't mask the dedup behavior being tested."""
     main._area_inflight.clear()
     main._route_inflight.clear()
-    main._suggest_inflight.clear()
     monkeypatch.setattr(main, "cache_get", lambda key: None)
     monkeypatch.setattr(main, "cache_set", lambda key, value, ttl_seconds=None: None)
     yield

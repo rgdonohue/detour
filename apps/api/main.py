@@ -1,5 +1,7 @@
 """FastAPI backend — API shield and cache layer for Detour."""
 import asyncio
+import hashlib
+import json as _json
 import logging
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -10,6 +12,7 @@ from pydantic import BaseModel, Field, field_validator
 from fastapi.middleware.cors import CORSMiddleware
 
 from cache import (
+    describe as cache_describe,
     get as cache_get,
     set as cache_set,
 )
@@ -34,7 +37,12 @@ if not logger.handlers:
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    """Open/close the shared ORS HTTP client at process lifecycle boundaries."""
+    """Open/close the shared ORS HTTP client at process lifecycle boundaries.
+    Also logs the on-disk cache state so ops can confirm CACHE_DIR is the
+    mounted Railway Volume and not the ephemeral container filesystem."""
+    state = cache_describe()
+    logger.info("Cache: dir=%s files=%d ttl_hours=%d",
+                state["dir"], state["files"], state["ttl_hours"])
     yield
     await aclose_client()
 
@@ -87,38 +95,61 @@ _RING_MILES: dict[str, list[float]] = {
 
 _area_inflight: dict[str, asyncio.Task] = {}
 _route_inflight: dict[str, asyncio.Task] = {}
-_suggest_inflight: dict[str, asyncio.Task] = {}
 
 
-def _route_dedup_key(
+def _route_cache_key(
     profile: str,
     origin: tuple[float, float],
     dest: tuple[float, float],
     via: list[tuple[float, float]] | None,
 ) -> str:
-    """Dedup key for /api/route. Inputs must already be quantized.
-    Via order is preserved — optimizeStopOrder is deterministic on the client,
-    so two users picking the same stop set produce the same ordered list."""
-    via_part = "|".join(f"{lon},{lat}" for lon, lat in (via or []))
+    """Cache + dedup key for /api/route. Inputs must already be quantized.
+    Via list is JSON-serialized (order-preserving) and hashed so filenames
+    stay short and filesystem-safe even with the 20-stop tour cap."""
+    via_hash = ""
+    if via:
+        via_json = _json.dumps([[v[0], v[1]] for v in via])
+        via_hash = hashlib.sha256(via_json.encode()).hexdigest()[:12]
     return (
-        f"route_v1_{profile}_shortest_"
-        f"{origin[0]},{origin[1]}__{dest[0]},{dest[1]}__{via_part}"
+        f"route_v1_{profile}_{origin[0]}_{origin[1]}_"
+        f"{dest[0]}_{dest[1]}_{via_hash}"
     )
 
 
-def _suggest_dedup_key(
-    profile: str,
+async def _cached_shortest_route(
+    key: str,
+    inflight: dict[str, asyncio.Task],
+    *,
     origin: tuple[float, float],
     dest: tuple[float, float],
-    category: str | None,
-    miles: float,
-) -> str:
-    """Dedup key for /api/suggest-stop GET (the form that triggers an internal
-    ORS call). POST with route_coordinates does not need dedup — no ORS call."""
-    return (
-        f"suggest_v1_{profile}_{category or 'all'}_"
-        f"{origin[0]},{origin[1]}__{dest[0]},{dest[1]}__{miles}"
-    )
+    via: list[tuple[float, float]] | None,
+    profile: str,
+    limit_miles: float,
+) -> dict:
+    """cache-get → dedup → ORS call → cache-set. The factory writes through
+    to disk so a second caller awaiting the same inflight task benefits from
+    persistence on the first call's success.
+
+    Re-raises ORS errors so existing handler-level error mapping (429/404/502)
+    stays put."""
+    cached = cache_get(key)
+    if cached is not None:
+        return cached
+
+    async def factory() -> dict:
+        result = await get_shortest_route(
+            origin[0],
+            origin[1],
+            dest[0],
+            dest[1],
+            limit_miles=limit_miles,
+            via_coords=via,
+            profile=profile,
+        )
+        cache_set(key, result)
+        return result
+
+    return await dedupe_inflight(inflight, key, factory)
 
 
 @app.get("/api/area")
@@ -212,22 +243,17 @@ async def get_route(
             raise HTTPException(status_code=400, detail=f"Invalid via: {e}")
 
     profile = _mode_to_profile(mode)
-    dedup_key = _route_dedup_key(
+    key = _route_cache_key(
         profile, (origin_lon, origin_lat), (dest_lon, dest_lat), via_coords or None
     )
     try:
-        result = await dedupe_inflight(
-            _route_inflight,
-            dedup_key,
-            lambda: get_shortest_route(
-                origin_lon,
-                origin_lat,
-                dest_lon,
-                dest_lat,
-                limit_miles=limit_miles,
-                via_coords=via_coords or None,
-                profile=profile,
-            ),
+        return await _cached_shortest_route(
+            key, _route_inflight,
+            origin=(origin_lon, origin_lat),
+            dest=(dest_lon, dest_lat),
+            via=via_coords or None,
+            profile=profile,
+            limit_miles=limit_miles,
         )
     except ValueError as e:
         msg = str(e)
@@ -236,11 +262,9 @@ async def get_route(
         if "no route" in msg.lower():
             raise HTTPException(status_code=404, detail=msg)
         raise HTTPException(status_code=502, detail=msg)
-    except Exception as e:
+    except Exception:
         logger.exception("ORS directions error")
         raise HTTPException(status_code=502, detail="Upstream routing error")
-
-    return result
 
 
 @app.get("/api/suggest-stop")
@@ -265,18 +289,20 @@ async def suggest_stop(
     limit_miles = miles if miles is not None else settings.DEFAULT_RANGE_MILES
 
     suggest_profile = _mode_to_profile(mode)
-    dedup_key = _suggest_dedup_key(
-        suggest_profile, (origin_lon, origin_lat), (dest_lon, dest_lat),
-        category, limit_miles,
+    # Route-level cache key, not suggest-specific: an identical origin/dest/profile
+    # produces the same route regardless of which stop category the user is browsing,
+    # so this also benefits /api/route consumers and vice versa.
+    key = _route_cache_key(
+        suggest_profile, (origin_lon, origin_lat), (dest_lon, dest_lat), None
     )
     try:
-        route_data = await dedupe_inflight(
-            _suggest_inflight,
-            dedup_key,
-            lambda: get_shortest_route(
-                origin_lon, origin_lat, dest_lon, dest_lat, limit_miles=limit_miles,
-                profile=suggest_profile,
-            ),
+        route_data = await _cached_shortest_route(
+            key, _route_inflight,
+            origin=(origin_lon, origin_lat),
+            dest=(dest_lon, dest_lat),
+            via=None,
+            profile=suggest_profile,
+            limit_miles=limit_miles,
         )
     except ValueError as e:
         msg = str(e)

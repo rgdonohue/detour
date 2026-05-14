@@ -22,7 +22,13 @@ class Settings(BaseSettings):
     ORIGIN_LON: float = -105.9384
     ORIGIN_LAT: float = 35.6824
     DEFAULT_RANGE_MILES: float = 3
-    CACHE_TTL_HOURS: int = 24
+    # 7 days — the ORS road graph rarely changes for this product, and routes
+    # depend only on the graph plus quantized endpoints. Override in prod if
+    # OSM updates need to land faster.
+    CACHE_TTL_HOURS: int = 168
+    # Empty = use repo-relative ./cache. In production, point at the Railway
+    # Volume mount path so cache survives restarts.
+    CACHE_DIR: str = ""
     CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
     USE_ORS_POIS: bool = False
 
