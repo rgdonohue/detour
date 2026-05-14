@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   computeGeolocateState,
   type GeolocateConfig,
@@ -15,6 +15,8 @@ export function useGeolocate(config: GeolocateConfig): UseGeolocateResult {
   const [state, setState] = useState<GeolocateState>("idle");
   const [coords, setCoords] = useState<[number, number] | null>(null);
   const inFlightRef = useRef(false);
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
   const configRef = useRef(config);
   configRef.current = config;
 
@@ -28,6 +30,7 @@ export function useGeolocate(config: GeolocateConfig): UseGeolocateResult {
     setState("requesting");
     navigator.geolocation.getCurrentPosition(
       (pos) => {
+        if (!mountedRef.current) return;
         inFlightRef.current = false;
         const result = computeGeolocateState(
           { kind: "success", coords: [pos.coords.longitude, pos.coords.latitude] },
@@ -37,6 +40,7 @@ export function useGeolocate(config: GeolocateConfig): UseGeolocateResult {
         setCoords(result.coords);
       },
       (err) => {
+        if (!mountedRef.current) return;
         inFlightRef.current = false;
         const code = (err.code === 1 || err.code === 2 || err.code === 3
           ? err.code
