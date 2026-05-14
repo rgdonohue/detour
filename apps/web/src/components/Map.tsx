@@ -130,7 +130,11 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
   const showAllStopsRef = useRef(false);
   showAllStopsRef.current = showAllStops;
 
-  const { polygon } = useServiceArea(origin?.[0], origin?.[1], mode);
+  const {
+    polygon,
+    error: areaError,
+    retryAfterSeconds: areaRetryAfterSeconds,
+  } = useServiceArea(origin?.[0], origin?.[1], mode);
   const { checkRoute, clearResult, result, isLoading, error, retryAfterSeconds } = useRouteCheck();
   const resultRef = useRef(result);
   resultRef.current = result;
@@ -1277,6 +1281,13 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
     >
       <div ref={containerRef} className="map-container" />
       {statusText && mapReady && <div className="map-hint" key={statusText}>{statusText}</div>}
+      {areaError && (
+        <div className="map-notice map-notice--soft" role="status" aria-live="polite">
+          {areaRetryAfterSeconds !== null
+            ? `Distance rings are busy. Try again in ${areaRetryAfterSeconds}s.`
+            : "Distance rings unavailable. Route checks still work."}
+        </div>
+      )}
       {origin && (
         <div className="ring-legend">
           <button

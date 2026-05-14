@@ -55,33 +55,42 @@ class RateLimiter:
         return [_Window(limit, window) for limit, window in self._ip_spec]
 
     async def check(self, ip: str) -> float:
-        """Return 0 if the request is allowed (and consume one slot from every
-        window), else the seconds the caller should wait before retrying."""
+        """Atomically check every window for this caller. Returns 0 if allowed
+        (and consumes a slot from each window), else the seconds to wait."""
         async with self._lock:
-            now = time.monotonic()
-            windows = self._global + self._ip_state[ip]
+            return self._consume(self._global + self._ip_state[ip])
 
-            # Sweep expired events out of every window first so the limit
-            # check sees only currently-counted requests.
-            for w in windows:
-                cutoff = now - w.window_seconds
-                while w.events and w.events[0] < cutoff:
-                    w.events.popleft()
+    async def check_ip(self, ip: str) -> float:
+        """Only the per-IP windows. Use this at handler entry for abuse limits
+        that should fire on every request (including cache hits)."""
+        async with self._lock:
+            return self._consume(self._ip_state[ip])
 
-            # If any window is at limit, return the longest retry-after.
-            retry = 0.0
-            for w in windows:
-                if len(w.events) >= w.limit:
-                    retry = max(retry, w.window_seconds - (now - w.events[0]))
+    async def check_global(self) -> float:
+        """Only the global windows. Use this immediately before an ORS-backed
+        call so cache hits don't consume upstream-protection quota."""
+        async with self._lock:
+            return self._consume(self._global)
 
-            if retry > 0:
-                # Always tell the caller at least 1s — fractional retry hints
-                # are not actionable.
-                return max(retry, 1.0)
-
-            for w in windows:
-                w.events.append(now)
-            return 0.0
+    def _consume(self, windows: list[_Window]) -> float:
+        now = time.monotonic()
+        # Sweep expired events out of every window first so the limit check
+        # sees only currently-counted requests.
+        for w in windows:
+            cutoff = now - w.window_seconds
+            while w.events and w.events[0] < cutoff:
+                w.events.popleft()
+        # If any window is at limit, return the longest retry-after.
+        retry = 0.0
+        for w in windows:
+            if len(w.events) >= w.limit:
+                retry = max(retry, w.window_seconds - (now - w.events[0]))
+        if retry > 0:
+            # Tell the caller at least 1s — fractional retry hints are not actionable.
+            return max(retry, 1.0)
+        for w in windows:
+            w.events.append(now)
+        return 0.0
 
     def reset(self) -> None:
         """Clear all state. Tests only."""

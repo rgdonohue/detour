@@ -66,47 +66,47 @@ app.add_middleware(
 )
 
 
-# Rate limits per endpoint. Per-IP keeps one bad actor from drowning the
-# instance; global keeps the combined traffic below the shared ORS quota.
+# Rate limiting splits into two concerns:
+#
+#   - Per-IP abuse limits run on EVERY request including cache hits, because
+#     even a cache hit costs us disk I/O and CPU. One bad actor can still
+#     hammer us into ground; these stop that.
+#
+#   - Global ORS-protection limits run ONLY on cache miss, immediately before
+#     the ORS call. Cache hits don't consume upstream-protection quota — the
+#     whole point of caching popular routes is to bypass the upstream entirely.
+#
 # Numbers come from docs/LAUNCH_READINESS.md — adjust there first.
-_LIMITERS: dict[str, RateLimiter] = {
-    "area": RateLimiter(
-        "area",
-        global_limits=[(18, 60), (450, 86400)],
-        ip_limits=[(6, 60), (60, 86400)],
-    ),
-    "route": RateLimiter(
-        "route",
-        global_limits=[(35, 60), (1800, 86400)],
-        ip_limits=[(20, 60), (300, 86400)],
-    ),
-    "suggest_get": RateLimiter(
-        "suggest_get",
-        global_limits=[(35, 60), (1800, 86400)],
-        ip_limits=[(20, 60), (300, 86400)],
-    ),
-    "suggest_post": RateLimiter(
-        "suggest_post",
-        ip_limits=[(60, 60)],
-    ),
-    "save_tour": RateLimiter(
-        "save_tour",
-        ip_limits=[(5, 60), (50, 86400)],
-    ),
+
+_IP_LIMITS: dict[str, RateLimiter] = {
+    "area":         RateLimiter("area_ip",         ip_limits=[(6, 60), (60, 86400)]),
+    "route":        RateLimiter("route_ip",        ip_limits=[(20, 60), (300, 86400)]),
+    "suggest_get":  RateLimiter("suggest_get_ip",  ip_limits=[(20, 60), (300, 86400)]),
+    "suggest_post": RateLimiter("suggest_post_ip", ip_limits=[(60, 60)]),
+    "save_tour":    RateLimiter("save_tour_ip",    ip_limits=[(5, 60), (50, 86400)]),
 }
+
+# One global ORS-directions bucket shared across every endpoint that ends up
+# calling get_shortest_route (route, suggest_get, suggest_post-no-geometry).
+# One global ORS-isochrones bucket for area requests. These protect the shared
+# ORS key from total combined load, not per-endpoint load.
+_ORS_DIRECTIONS = RateLimiter("ors_directions", global_limits=[(35, 60), (1800, 86400)])
+_ORS_ISOCHRONES = RateLimiter("ors_isochrones", global_limits=[(18, 60), (450, 86400)])
+
+_ALL_LIMITERS: list[RateLimiter] = list(_IP_LIMITS.values()) + [_ORS_DIRECTIONS, _ORS_ISOCHRONES]
 
 
 class RateLimitExceeded(Exception):
-    def __init__(self, endpoint: str, retry_after: int) -> None:
-        self.endpoint = endpoint
+    def __init__(self, scope: str, retry_after: int) -> None:
+        self.scope = scope
         self.retry_after = retry_after
 
 
 @app.exception_handler(RateLimitExceeded)
 async def _rate_limit_handler(_request: Request, exc: RateLimitExceeded) -> JSONResponse:
     """Surface 429s with a structured body the frontend can read directly.
-    Putting `retry_after_seconds` at the top level — not nested under `detail`
-    as a dict — keeps the existing `detail` string contract intact."""
+    `retry_after_seconds` sits at the top level (not nested under `detail`)
+    so the existing string-`detail` contract stays intact."""
     return JSONResponse(
         status_code=429,
         content={
@@ -126,10 +126,28 @@ def _client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
-async def _enforce(endpoint: str, request: Request) -> None:
-    retry = await _LIMITERS[endpoint].check(_client_ip(request))
+async def _enforce_ip(endpoint: str, request: Request) -> None:
+    """Cheap per-IP abuse check. Run at the start of every protected handler,
+    BEFORE the cache lookup."""
+    retry = await _IP_LIMITS[endpoint].check_ip(_client_ip(request))
     if retry > 0:
-        raise RateLimitExceeded(endpoint, int(retry) + 1)
+        raise RateLimitExceeded(f"{endpoint}_ip", int(retry) + 1)
+
+
+async def _enforce_ors_directions() -> None:
+    """Run inside the cache-miss path, immediately before an ORS directions
+    call. Cache hits do not call this."""
+    retry = await _ORS_DIRECTIONS.check_global()
+    if retry > 0:
+        raise RateLimitExceeded("ors_directions", int(retry) + 1)
+
+
+async def _enforce_ors_isochrones() -> None:
+    """Run inside the cache-miss path, immediately before an ORS isochrones
+    call. Cache hits do not call this."""
+    retry = await _ORS_ISOCHRONES.check_global()
+    if retry > 0:
+        raise RateLimitExceeded("ors_isochrones", int(retry) + 1)
 
 
 @app.get("/")
@@ -184,6 +202,27 @@ def _route_cache_key(
     )
 
 
+# The route cache stores route geometry + distance + duration only. The
+# `within_limit` / `limit_miles` fields depend on the caller's per-request
+# miles param, so we strip them on write and recompute on every return —
+# otherwise a cached response from a miles=1 caller would poison the verdict
+# for a later miles=5 caller with the same origin/dest.
+_VERDICT_FIELDS = ("within_limit", "limit_miles")
+
+
+def _strip_verdict(result: dict) -> dict:
+    return {k: v for k, v in result.items() if k not in _VERDICT_FIELDS}
+
+
+def _with_verdict(result: dict, limit_miles: float) -> dict:
+    distance_meters = result.get("distance_meters", 0)
+    return {
+        **result,
+        "within_limit": distance_meters <= miles_to_meters(limit_miles),
+        "limit_miles": limit_miles,
+    }
+
+
 async def _cached_shortest_route(
     key: str,
     inflight: dict[str, asyncio.Task],
@@ -194,17 +233,19 @@ async def _cached_shortest_route(
     profile: str,
     limit_miles: float,
 ) -> dict:
-    """cache-get → dedup → ORS call → cache-set. The factory writes through
-    to disk so a second caller awaiting the same inflight task benefits from
-    persistence on the first call's success.
+    """cache-get → dedup → ORS call → cache-set. The factory runs the global
+    ORS-protection limit immediately before the ORS call so cache hits don't
+    burn upstream quota. The verdict (within_limit, limit_miles) is overlaid
+    per-request so different miles thresholds don't poison the cache.
 
     Re-raises ORS errors so existing handler-level error mapping (429/404/502)
     stays put."""
     cached = cache_get(key)
     if cached is not None:
-        return cached
+        return _with_verdict(cached, limit_miles)
 
     async def factory() -> dict:
+        await _enforce_ors_directions()
         result = await get_shortest_route(
             origin[0],
             origin[1],
@@ -214,10 +255,12 @@ async def _cached_shortest_route(
             via_coords=via,
             profile=profile,
         )
-        cache_set(key, result)
-        return result
+        stripped = _strip_verdict(result)
+        cache_set(key, stripped)
+        return stripped
 
-    return await dedupe_inflight(inflight, key, factory)
+    result = await dedupe_inflight(inflight, key, factory)
+    return _with_verdict(result, limit_miles)
 
 
 @app.get("/api/area")
@@ -229,7 +272,7 @@ async def get_area(
     """Returns a GeoJSON FeatureCollection with three concentric isodistance rings.
     Ring distances are determined by mode: drive=1/3/5 mi, walk=0.5/1/2 mi.
     Accepts optional origin=lon,lat; defaults to configured origin."""
-    await _enforce("area", request)
+    await _enforce_ip("area", request)
     if origin:
         try:
             origin_lon, origin_lat = _parse_to_param(origin)
@@ -247,12 +290,14 @@ async def get_area(
     if cached:
         return cached
 
+    async def factory() -> dict:
+        await _enforce_ors_isochrones()
+        return await get_isodistance(origin_lon, origin_lat, distances_meters, profile)
+
     try:
-        result = await dedupe_inflight(
-            _area_inflight,
-            cache_key,
-            lambda: get_isodistance(origin_lon, origin_lat, distances_meters, profile),
-        )
+        result = await dedupe_inflight(_area_inflight, cache_key, factory)
+    except RateLimitExceeded:
+        raise
     except ValueError as e:
         msg = str(e)
         if "rate limited" in msg.lower():
@@ -294,7 +339,7 @@ async def get_route(
 ):
     """Returns shortest route from origin to destination and within-limit verdict.
     Accepts optional origin=lon,lat, repeated via=lon,lat waypoints, and mode=drive|walk."""
-    await _enforce("route", request)
+    await _enforce_ip("route", request)
     limit_miles = miles if miles is not None else settings.DEFAULT_RANGE_MILES
     try:
         dest_lon, dest_lat = _parse_to_param(to)
@@ -330,6 +375,8 @@ async def get_route(
             profile=profile,
             limit_miles=limit_miles,
         )
+    except RateLimitExceeded:
+        raise
     except ValueError as e:
         msg = str(e)
         if "rate limited" in msg.lower():
@@ -352,7 +399,7 @@ async def suggest_stop(
     mode: Literal["drive", "walk"] = "drive",
 ):
     """Suggest the best nearby stop along the route from origin to destination."""
-    await _enforce("suggest_get", request)
+    await _enforce_ip("suggest_get", request)
     try:
         origin_lon, origin_lat = _parse_to_param(origin)
     except ValueError as e:
@@ -381,6 +428,8 @@ async def suggest_stop(
             profile=suggest_profile,
             limit_miles=limit_miles,
         )
+    except RateLimitExceeded:
+        raise
     except ValueError as e:
         msg = str(e)
         if "rate limited" in msg.lower():
@@ -447,8 +496,9 @@ class SuggestStopBody(BaseModel):
 async def suggest_stop_post(request: Request, body: SuggestStopBody):
     """Suggest stops along a route. Accepts pre-computed route_coordinates to skip the
     internal ORS route call the GET variant makes. Falls back to the GET behavior when
-    route_coordinates is absent."""
-    await _enforce("suggest_post", request)
+    route_coordinates is absent — that branch goes through _cached_shortest_route so
+    it shares the same cache + dedup + global ORS-protection limit as /api/route."""
+    await _enforce_ip("suggest_post", request)
     try:
         origin_lon, origin_lat = _parse_to_param(body.origin)
     except ValueError as e:
@@ -465,13 +515,27 @@ async def suggest_stop_post(request: Request, body: SuggestStopBody):
     if body.route_coordinates and len(body.route_coordinates) >= 2:
         route_coords = body.route_coordinates
     else:
+        # No client-provided geometry — fall through to ORS. Route via
+        # _cached_shortest_route so this public-callable path gets the same
+        # cache, dedup, and global ORS-protection limit as /api/route.
+        key = _route_cache_key(
+            suggest_profile, (origin_lon, origin_lat), (dest_lon, dest_lat), None,
+        )
         try:
-            route_data = await get_shortest_route(
-                origin_lon, origin_lat, dest_lon, dest_lat,
-                limit_miles=limit_miles, profile=suggest_profile,
+            route_data = await _cached_shortest_route(
+                key, _route_inflight,
+                origin=(origin_lon, origin_lat),
+                dest=(dest_lon, dest_lat),
+                via=None,
+                profile=suggest_profile,
+                limit_miles=limit_miles,
             )
+        except RateLimitExceeded:
+            raise
         except ValueError as e:
             msg = str(e)
+            if "rate limited" in msg.lower():
+                raise HTTPException(status_code=429, detail=msg)
             if "no route" in msg.lower():
                 raise HTTPException(status_code=404, detail=msg)
             raise HTTPException(status_code=502, detail=msg)
@@ -569,7 +633,7 @@ async def save_user_tour(request: Request, body: SaveTourBody):
     have stashed in sessionStorage, gets back a slug, and navigates to
     /tours/<slug> — the existing GET handler then serves it back.
     """
-    await _enforce("save_tour", request)
+    await _enforce_ip("save_tour", request)
     payload = body.model_dump()
     try:
         slug = save_tour(payload)

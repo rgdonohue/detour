@@ -89,6 +89,50 @@ async def test_cache_survives_in_memory_eviction(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_cache_returns_recomputed_verdict_per_miles(monkeypatch):
+    """A request with miles=1 must not poison the cache for a later request
+    with miles=5. The cache stores route geometry only; `within_limit` and
+    `limit_miles` are recomputed per request from the caller's miles param."""
+
+    async def fake_route(*args, **kwargs):
+        return {
+            "route": {
+                "type": "Feature",
+                "geometry": {"type": "LineString", "coordinates": [[0, 0], [1, 1]]},
+                "properties": {},
+            },
+            "distance_meters": 4000.0,  # ~2.49 miles — over 1mi, under 5mi
+            "distance_miles": 2.49,
+            "duration_seconds": 240.0,
+            # The factory uses whatever miles it was passed; the overlay should
+            # discard this and recompute from the caller's perspective.
+            "within_limit": False,
+            "limit_miles": 1.0,
+        }
+
+    monkeypatch.setattr(main, "get_shortest_route", fake_route)
+
+    transport = ASGITransport(app=main.app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # First caller: miles=1. 4000m > 1609m so within_limit=False.
+        params = {"to": "-105.9385,35.6839", "origin": "-105.94,35.685", "miles": "1"}
+        r1 = await client.get("/api/route", params=params)
+        assert r1.status_code == 200
+        d1 = r1.json()
+        assert d1["within_limit"] is False
+        assert d1["limit_miles"] == 1.0
+
+        # Second caller: same origin/dest, miles=5. 4000m < 8046m so within_limit=True.
+        # If the cache poisoned the verdict, this would falsely report False.
+        params5 = {"to": "-105.9385,35.6839", "origin": "-105.94,35.685", "miles": "5"}
+        r2 = await client.get("/api/route", params=params5)
+        assert r2.status_code == 200
+        d2 = r2.json()
+        assert d2["within_limit"] is True, "cache poisoning: miles=5 still reports False"
+        assert d2["limit_miles"] == 5.0
+
+
+@pytest.mark.asyncio
 async def test_suggest_stop_and_route_share_cache(monkeypatch):
     """GET /api/suggest-stop and /api/route hit the same route cache key for
     the same origin/dest/profile, so the internal route call inside suggest-

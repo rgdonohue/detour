@@ -13,6 +13,6 @@ import main
 @pytest.fixture(autouse=True)
 def _reset_rate_limiters():
     """Clear every limiter's state before each test runs."""
-    for limiter in main._LIMITERS.values():
+    for limiter in main._ALL_LIMITERS:
         limiter.reset()
     yield

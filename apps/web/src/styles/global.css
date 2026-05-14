@@ -1698,6 +1698,30 @@ h1, h2, h3 {
   }
 }
 
+/* Soft, non-blocking notice (e.g. distance rings busy) — top-center, less
+ * loud than an error toast since the route check still works.  */
+.map-notice {
+  position: absolute;
+  top: 1.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.5rem 0.875rem;
+  background: rgba(255, 244, 230, 0.95);
+  border: 1px solid rgba(196, 91, 40, 0.25);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--dark-brown);
+  z-index: 10;
+  pointer-events: none;
+  animation: hint-in 0.45s ease-out;
+}
+
+.map-notice--soft {
+  background: rgba(255, 250, 240, 0.95);
+}
+
 @media (max-width: 768px) {
   .map-hint {
     top: 1rem;
