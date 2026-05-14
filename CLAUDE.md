@@ -21,6 +21,7 @@ The New Mexico State Capitol is still the default configured center and fallback
 - `docs/PRD.md` - current product framing and scope
 - `docs/TECH_SPEC.md` - current API contract and implementation notes
 - `docs/PROMPTS.md` - prompt patterns for repo-aware maintenance work
+- `docs/LAUNCH_READINESS.md` - sequenced engineering work before posting publicly (rate limits, route cache, ORS hosting); read before touching `apps/api/main.py`, `apps/api/ors_client.py`, or `apps/api/cache.py`
 
 ## Architecture
 
@@ -46,6 +47,7 @@ The New Mexico State Capitol is still the default configured center and fallback
 3. ORS service-area requests must use `range_type="distance"`.
 4. The route verdict is authoritative; the polygon is only a visual guide.
 5. Keep the current click flow intact unless the task explicitly changes product behavior.
+6. `ORS_API_KEY` is server-side only. No endpoint may return it to the browser, log it, or include it in any response body. `/api/config` is the canonical place this could regress — guard it.
 
 ## Style
 
