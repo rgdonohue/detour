@@ -7,6 +7,37 @@ const API_BASE = import.meta.env.VITE_API_BASE ?? "/api";
 
 export type TravelMode = "drive" | "walk";
 
+/**
+ * Thrown by API helpers. Carries the HTTP status and an optional
+ * `retryAfterSeconds` so callers can render a backoff-aware message
+ * when the backend returns 429.
+ */
+export class ApiError extends Error {
+  status: number;
+  retryAfterSeconds?: number;
+  constructor(message: string, status: number, retryAfterSeconds?: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.retryAfterSeconds = retryAfterSeconds;
+  }
+}
+
+async function _throwFromResponse(res: Response, fallback: string): Promise<never> {
+  const body = await res.json().catch(() => ({} as Record<string, unknown>));
+  const detail = body.detail;
+  // Backend may return `detail` as a string (most errors) or, in older paths,
+  // as a structured object. Coerce to a clean human string either way.
+  const message = typeof detail === "string"
+    ? detail
+    : (detail && typeof detail === "object")
+      ? fallback
+      : fallback;
+  const retryAfterRaw = (body as { retry_after_seconds?: unknown }).retry_after_seconds;
+  const retryAfterSeconds = typeof retryAfterRaw === "number" ? retryAfterRaw : undefined;
+  throw new ApiError(message, res.status, retryAfterSeconds);
+}
+
 export interface Config {
   origin_name: string;
   address: string;
@@ -169,7 +200,7 @@ export async function getArea(
   }
   if (mode && mode !== "drive") params.set("mode", mode);
   const res = await fetch(`${API_BASE}/area?${params}`, { signal });
-  if (!res.ok) throw new Error(`Area failed: ${res.status}`);
+  if (!res.ok) await _throwFromResponse(res, `Area failed: ${res.status}`);
   return res.json();
 }
 
@@ -209,10 +240,7 @@ export async function suggestStop(
     if (mode && mode !== "drive") params.set("mode", mode);
     res = await fetchWithTimeout(`${API_BASE}/suggest-stop?${params}`, ROUTE_TIMEOUT_MS, signal);
   }
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.detail ?? `Suggest-stop failed: ${res.status}`);
-  }
+  if (!res.ok) await _throwFromResponse(res, `Suggest-stop failed: ${res.status}`);
   const data = await res.json();
   data.stops ??= [];
   return data as SuggestStopResponse;
@@ -237,10 +265,7 @@ export async function saveTour(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(tour),
   });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.detail ?? `Save tour failed: ${res.status}`);
-  }
+  if (!res.ok) await _throwFromResponse(res, `Save tour failed: ${res.status}`);
   return res.json();
 }
 
@@ -268,9 +293,6 @@ export async function getRoute(
     ROUTE_TIMEOUT_MS,
     signal,
   );
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.detail ?? `Route failed: ${res.status}`);
-  }
+  if (!res.ok) await _throwFromResponse(res, `Route failed: ${res.status}`);
   return res.json();
 }

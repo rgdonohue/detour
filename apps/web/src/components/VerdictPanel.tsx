@@ -45,6 +45,7 @@ interface VerdictPanelProps {
   limit_miles: number;
   isLoading?: boolean;
   error?: string | null;
+  retryAfterSeconds?: number | null;
   onReset: () => void;
   nearbyStops?: StopSuggestion[];
   selectedStops?: StopSuggestion[];
@@ -87,6 +88,7 @@ export function VerdictPanel({
   limit_miles,
   isLoading = false,
   error = null,
+  retryAfterSeconds = null,
   onReset,
   nearbyStops = [],
   selectedStops = [],
@@ -124,12 +126,15 @@ export function VerdictPanel({
   if (error) {
     const isNoRoute = /no route|not found|unreachable|404/i.test(error);
     const isNetwork = /unable to connect|internet connection/i.test(error);
+    const isRateLimited = retryAfterSeconds !== null && retryAfterSeconds !== undefined;
     const routeLabel = mode === "walk" ? "walking" : "driving";
-    const message = isNoRoute
-      ? `No ${routeLabel} route to this location`
-      : isNetwork
-        ? "Unable to connect. Check your internet connection."
-        : "Route check unavailable, try again";
+    const message = isRateLimited
+      ? `Routing is busy. Try again in ${retryAfterSeconds}s.`
+      : isNoRoute
+        ? `No ${routeLabel} route to this location`
+        : isNetwork
+          ? "Unable to connect. Check your internet connection."
+          : "Route check unavailable, try again";
 
     return (
       <div

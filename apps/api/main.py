@@ -7,7 +7,8 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Literal
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -22,6 +23,7 @@ from coords import quantize
 from inflight import dedupe_inflight
 from ors_client import aclose_client, get_isodistance, get_shortest_route
 from poi_client import get_pois_along_route
+from rate_limit import RateLimiter
 from saved_tours import save_tour
 from stop_selector import ORS_ELIGIBLE_CATEGORIES, get_all_places_geojson, select_from_ors, select_from_static
 from tour_loader import get_tour, list_tours
@@ -62,6 +64,72 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# Rate limits per endpoint. Per-IP keeps one bad actor from drowning the
+# instance; global keeps the combined traffic below the shared ORS quota.
+# Numbers come from docs/LAUNCH_READINESS.md — adjust there first.
+_LIMITERS: dict[str, RateLimiter] = {
+    "area": RateLimiter(
+        "area",
+        global_limits=[(18, 60), (450, 86400)],
+        ip_limits=[(6, 60), (60, 86400)],
+    ),
+    "route": RateLimiter(
+        "route",
+        global_limits=[(35, 60), (1800, 86400)],
+        ip_limits=[(20, 60), (300, 86400)],
+    ),
+    "suggest_get": RateLimiter(
+        "suggest_get",
+        global_limits=[(35, 60), (1800, 86400)],
+        ip_limits=[(20, 60), (300, 86400)],
+    ),
+    "suggest_post": RateLimiter(
+        "suggest_post",
+        ip_limits=[(60, 60)],
+    ),
+    "save_tour": RateLimiter(
+        "save_tour",
+        ip_limits=[(5, 60), (50, 86400)],
+    ),
+}
+
+
+class RateLimitExceeded(Exception):
+    def __init__(self, endpoint: str, retry_after: int) -> None:
+        self.endpoint = endpoint
+        self.retry_after = retry_after
+
+
+@app.exception_handler(RateLimitExceeded)
+async def _rate_limit_handler(_request: Request, exc: RateLimitExceeded) -> JSONResponse:
+    """Surface 429s with a structured body the frontend can read directly.
+    Putting `retry_after_seconds` at the top level — not nested under `detail`
+    as a dict — keeps the existing `detail` string contract intact."""
+    return JSONResponse(
+        status_code=429,
+        content={
+            "detail": "Rate limit exceeded. Try again shortly.",
+            "retry_after_seconds": exc.retry_after,
+        },
+        headers={"Retry-After": str(exc.retry_after)},
+    )
+
+
+def _client_ip(request: Request) -> str:
+    """First hop of X-Forwarded-For wins (Railway proxies set this). Fall
+    back to the direct peer for local dev where there is no proxy."""
+    xff = request.headers.get("x-forwarded-for")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+async def _enforce(endpoint: str, request: Request) -> None:
+    retry = await _LIMITERS[endpoint].check(_client_ip(request))
+    if retry > 0:
+        raise RateLimitExceeded(endpoint, int(retry) + 1)
 
 
 @app.get("/")
@@ -153,10 +221,15 @@ async def _cached_shortest_route(
 
 
 @app.get("/api/area")
-async def get_area(origin: str | None = None, mode: Literal["drive", "walk"] = "drive"):
+async def get_area(
+    request: Request,
+    origin: str | None = None,
+    mode: Literal["drive", "walk"] = "drive",
+):
     """Returns a GeoJSON FeatureCollection with three concentric isodistance rings.
     Ring distances are determined by mode: drive=1/3/5 mi, walk=0.5/1/2 mi.
     Accepts optional origin=lon,lat; defaults to configured origin."""
+    await _enforce("area", request)
     if origin:
         try:
             origin_lon, origin_lat = _parse_to_param(origin)
@@ -212,6 +285,7 @@ def _parse_to_param(to: str) -> tuple[float, float]:
 
 @app.get("/api/route")
 async def get_route(
+    request: Request,
     to: str,
     origin: str | None = None,
     via: list[str] | None = Query(default=None),
@@ -220,6 +294,7 @@ async def get_route(
 ):
     """Returns shortest route from origin to destination and within-limit verdict.
     Accepts optional origin=lon,lat, repeated via=lon,lat waypoints, and mode=drive|walk."""
+    await _enforce("route", request)
     limit_miles = miles if miles is not None else settings.DEFAULT_RANGE_MILES
     try:
         dest_lon, dest_lat = _parse_to_param(to)
@@ -269,6 +344,7 @@ async def get_route(
 
 @app.get("/api/suggest-stop")
 async def suggest_stop(
+    request: Request,
     origin: str,
     destination: str,
     category: str | None = None,
@@ -276,6 +352,7 @@ async def suggest_stop(
     mode: Literal["drive", "walk"] = "drive",
 ):
     """Suggest the best nearby stop along the route from origin to destination."""
+    await _enforce("suggest_get", request)
     try:
         origin_lon, origin_lat = _parse_to_param(origin)
     except ValueError as e:
@@ -367,10 +444,11 @@ class SuggestStopBody(BaseModel):
 
 
 @app.post("/api/suggest-stop")
-async def suggest_stop_post(body: SuggestStopBody):
+async def suggest_stop_post(request: Request, body: SuggestStopBody):
     """Suggest stops along a route. Accepts pre-computed route_coordinates to skip the
     internal ORS route call the GET variant makes. Falls back to the GET behavior when
     route_coordinates is absent."""
+    await _enforce("suggest_post", request)
     try:
         origin_lon, origin_lat = _parse_to_param(body.origin)
     except ValueError as e:
@@ -484,13 +562,14 @@ class SaveTourBody(BaseModel):
 
 
 @app.post("/api/tours")
-def save_user_tour(body: SaveTourBody):
+async def save_user_tour(request: Request, body: SaveTourBody):
     """Persist a user-built tour and return its assigned slug.
 
     The frontend POSTs the same TourDefinition shape it would otherwise
     have stashed in sessionStorage, gets back a slug, and navigates to
     /tours/<slug> — the existing GET handler then serves it back.
     """
+    await _enforce("save_tour", request)
     payload = body.model_dump()
     try:
         slug = save_tour(payload)

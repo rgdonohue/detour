@@ -131,7 +131,7 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
   showAllStopsRef.current = showAllStops;
 
   const { polygon } = useServiceArea(origin?.[0], origin?.[1], mode);
-  const { checkRoute, clearResult, result, isLoading, error } = useRouteCheck();
+  const { checkRoute, clearResult, result, isLoading, error, retryAfterSeconds } = useRouteCheck();
   const resultRef = useRef(result);
   resultRef.current = result;
 
@@ -1326,6 +1326,7 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
             limit_miles={effectiveMilesFor(mode)}
             isLoading={isLoading}
             error={error}
+            retryAfterSeconds={retryAfterSeconds}
             onReset={handleReset}
             nearbyStops={filteredStops}
             selectedStops={selectedStops}

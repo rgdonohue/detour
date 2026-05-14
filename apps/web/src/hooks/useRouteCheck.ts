@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from "react";
-import { getRoute, type RouteResponse, type TravelMode } from "../lib/api";
+import { ApiError, getRoute, type RouteResponse, type TravelMode } from "../lib/api";
 
 export interface RouteCheckResult {
   route: RouteResponse["route"];
@@ -12,6 +12,9 @@ export function useRouteCheck() {
   const [result, setResult] = useState<RouteCheckResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Set when the backend returns 429 with a `retry_after_seconds` field, so
+  // the verdict UI can render "try again in Ns" instead of generic copy.
+  const [retryAfterSeconds, setRetryAfterSeconds] = useState<number | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
 
   const checkRoute = useCallback(async (
@@ -27,6 +30,7 @@ export function useRouteCheck() {
     const signal = controllerRef.current.signal;
 
     setError(null);
+    setRetryAfterSeconds(null);
     setIsLoading(true);
 
     try {
@@ -43,6 +47,9 @@ export function useRouteCheck() {
       const message =
         err instanceof Error ? err.message : "Route check unavailable, try again";
       setError(message);
+      if (err instanceof ApiError && err.retryAfterSeconds !== undefined) {
+        setRetryAfterSeconds(err.retryAfterSeconds);
+      }
       setResult(null);
       throw err;
     } finally {
@@ -55,6 +62,7 @@ export function useRouteCheck() {
     controllerRef.current = null;
     setResult(null);
     setError(null);
+    setRetryAfterSeconds(null);
     setIsLoading(false);
   }, []);
 
@@ -64,5 +72,6 @@ export function useRouteCheck() {
     result,
     isLoading,
     error,
+    retryAfterSeconds,
   };
 }
