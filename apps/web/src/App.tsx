@@ -4,6 +4,7 @@ import { Map } from "./components/Map";
 import { ModeToggle } from "./components/ModeToggle";
 import { AppHeader } from "./components/AppHeader";
 import { AppFooter } from "./components/AppFooter";
+import { GeolocatePrompt } from "./components/GeolocatePrompt";
 import { TourGallery } from "./pages/TourGallery";
 import { TourStoryMap } from "./pages/TourStoryMap";
 import { ExplorePage } from "./pages/ExplorePage";
@@ -16,6 +17,7 @@ function BuilderPage() {
   );
   const resetRef = useRef<() => void>(() => {});
   const modeChangeRef = useRef<(m: TravelMode) => void>((m) => setMode(m));
+  const geolocateRef = useRef<() => void>(() => {});
 
   return (
     <div className="app">
@@ -27,9 +29,11 @@ function BuilderPage() {
         <Map
           resetRef={resetRef}
           modeChangeRef={modeChangeRef}
+          geolocateRef={geolocateRef}
           mode={mode}
           onModeChange={setMode}
         />
+        <GeolocatePrompt onAccept={() => geolocateRef.current()} />
       </div>
       <AppFooter />
     </div>

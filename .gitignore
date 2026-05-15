@@ -7,3 +7,4 @@ __pycache__
 cache/*.geojson
 cache/*.json
 apps/api/data/saved_tours/*.json
+apps/api/*.log

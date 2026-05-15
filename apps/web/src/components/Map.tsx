@@ -1,6 +1,6 @@
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   getConfig,
@@ -16,9 +16,15 @@ import { buildTourFromState } from "../lib/buildTour";
 import { optimizeStopOrder } from "../lib/optimizeStops";
 import { useServiceArea } from "../hooks/useServiceArea";
 import { useRouteCheck, type RouteCheckResult } from "../hooks/useRouteCheck";
+import { useGeolocate } from "../hooks/useGeolocate";
 import { VerdictPanel } from "./VerdictPanel";
 import { ModeToggle } from "./ModeToggle";
+import { BottomSheet } from "./BottomSheet";
+import { useMediaQuery } from "../hooks/useMediaQuery";
+import type { SnapName } from "../lib/bottomSheet";
+import { LocateControl } from "./LocateControl";
 import { CATEGORY_COLORS, type PlaceCategory } from "../data/places";
+import { setYouAreHereLayer } from "../lib/youAreHereLayer";
 import {
   parseShareableRouteState,
   replaceShareableRouteState,
@@ -55,6 +61,7 @@ type ClickPhase = "set-origin" | "set-destination" | "route-shown";
 interface MapProps {
   resetRef?: { current: () => void };
   modeChangeRef?: { current: (mode: TravelMode) => void };
+  geolocateRef?: { current: () => void };
   mode: TravelMode;
   onModeChange: (mode: TravelMode) => void;
 }
@@ -86,7 +93,32 @@ function toRouteCheckResult(
   };
 }
 
-export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
+function SidebarContents(props: {
+  mode: TravelMode;
+  handleModeChange: (m: TravelMode) => void;
+  showVerdictPanel: boolean;
+  verdictProps: ComponentProps<typeof VerdictPanel>;
+  showModeToggle: boolean;
+}) {
+  const { mode, handleModeChange, showVerdictPanel, verdictProps, showModeToggle } = props;
+  return (
+    <>
+      {showModeToggle && <ModeToggle mode={mode} onChange={handleModeChange} />}
+      {!showVerdictPanel && (
+        <div className="sidebar-intro">
+          <h2>Explore Santa Fe {mode === "walk" ? "on foot" : "by car"}</h2>
+          <p>
+            Plan a {mode === "walk" ? "walk" : "drive"} and discover stops worth a detour — historic sites,
+            galleries, landmarks, and scenic overlooks along your route.
+          </p>
+        </div>
+      )}
+      {showVerdictPanel && <VerdictPanel {...verdictProps} />}
+    </>
+  );
+}
+
+export function Map({ resetRef, modeChangeRef, geolocateRef, mode, onModeChange }: MapProps) {
   const navigate = useNavigate();
   const initialShareStateRef = useRef(parseShareableRouteState());
   const restoreStartedRef = useRef(false);
@@ -104,8 +136,14 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
   const detourAbortControllerRef = useRef<AbortController | null>(null);
   const stopSuggestControllerRef = useRef<AbortController | null>(null);
   const onStopClickRef = useRef<(stop: StopSuggestion) => void>(() => {});
+  const sheetControlRef = useRef<{ setSnap: (snap: SnapName) => void } | null>(null);
 
   const [config, setConfig] = useState<Config | null>(null);
+  const geo = useGeolocate({
+    centerCoords: config?.coordinates ?? FALLBACK_CONFIG.coordinates,
+    maxMiles: config?.max_miles ?? FALLBACK_CONFIG.max_miles,
+  });
+  const [geoNotice, setGeoNotice] = useState<string | null>(null);
   const [clickPhase, setClickPhase] = useState<ClickPhase>("set-origin");
   const [origin, setOrigin] = useState<[number, number] | null>(null);
   const [destination, setDestination] = useState<[number, number] | null>(null);
@@ -129,6 +167,9 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
   showRingsRef.current = showRings;
   const showAllStopsRef = useRef(false);
   showAllStopsRef.current = showAllStops;
+  const clickPhaseRef = useRef(clickPhase);
+  clickPhaseRef.current = clickPhase;
+  const lastAppliedGeoOkRef = useRef<[number, number] | null>(null);
 
   const {
     polygon,
@@ -846,6 +887,41 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
     if (resetRef) resetRef.current = handleReset;
   }, [resetRef, handleReset]);
 
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+    if (geo.state === "ok" && geo.coords) {
+      if (lastAppliedGeoOkRef.current !== geo.coords) {
+        setYouAreHereLayer(map, geo.coords);
+        if (clickPhaseRef.current === "set-origin" && !originRef.current) {
+          placeOriginMarker(geo.coords);
+          setOrigin(geo.coords);
+          setClickPhase("set-destination");
+        }
+        map.easeTo({ center: geo.coords, zoom: 15, duration: 800 });
+        sheetControlRef.current?.setSnap("peek");
+        lastAppliedGeoOkRef.current = geo.coords;
+        setGeoNotice(null);
+      }
+    } else if (geo.state === "out-of-range") {
+      setYouAreHereLayer(map, null);
+      setGeoNotice("You're outside the Santa Fe area.");
+    } else if (geo.state === "denied") {
+      setGeoNotice("Location permission denied. Enable it in your browser settings.");
+    } else if (geo.state === "unavailable") {
+      setGeoNotice("Couldn't get your location.");
+    }
+  }, [geo.state, geo.coords, mapReady]);
+
+  useEffect(() => {
+    if (!geoNotice) return;
+    const t = setTimeout(() => setGeoNotice(null), 4000);
+    return () => clearTimeout(t);
+  }, [geoNotice]);
+
+  useEffect(() => {
+    if (geolocateRef) geolocateRef.current = geo.request;
+  }, [geolocateRef, geo.request]);
 
   useEffect(() => {
     if (!restoreReady) return;
@@ -1262,6 +1338,8 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
     [nearbyStops, activeCategories],
   );
 
+  const isMobile = useMediaQuery("(max-width: 768px)");
+
   if (!config) {
     return <div className="map-loading">Loading map…</div>;
   }
@@ -1274,6 +1352,50 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
       : !showVerdictPanel && clickPhase === "set-destination"
         ? "Now click your destination"
         : null;
+
+  const peekSummary = (() => {
+    if (activeResult?.within_limit === true) return <>{mode === "walk" ? "Walk" : "Drive"} · within limit</>;
+    if (activeResult?.within_limit === false) return <>{mode === "walk" ? "Walk" : "Drive"} · over limit</>;
+    return <>{mode === "walk" ? "Walk" : "Drive"} · tap map to start</>;
+  })();
+
+  const verdictProps: ComponentProps<typeof VerdictPanel> = {
+    distance_miles: activeResult?.distance_miles ?? 0,
+    duration_seconds: activeResult?.duration_seconds ?? 0,
+    within_limit: activeResult?.within_limit ?? false,
+    limit_miles: effectiveMilesFor(mode),
+    isLoading,
+    error,
+    retryAfterSeconds,
+    onReset: handleReset,
+    nearbyStops: filteredStops,
+    selectedStops,
+    stopLoading,
+    stopError,
+    onSelectStop: handleSelectStop,
+    onFocusStop: handleFocusStop,
+    activeCategories,
+    onToggleCategory: handleToggleCategory,
+    onToggleAllCategories: handleToggleAllCategories,
+    categoryCounts,
+    detourLoading,
+    showingDetour,
+    mode,
+    shortestRoute:
+      showingDetour && result
+        ? {
+            distance_miles: result.distance_miles,
+            duration_seconds: result.duration_seconds,
+            within_limit: result.within_limit,
+          }
+        : null,
+    onBackToShortest: showingDetour ? handleBackToShortest : null,
+    showAllStops,
+    onToggleShowAll: () => setShowAllStops((prev) => !prev),
+    onPlayTour: showingDetour && detourResult && selectedStops.length >= 1 ? handlePlayTour : null,
+    savingTour,
+    saveTourError,
+  };
 
   return (
     <div
@@ -1288,6 +1410,8 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
             : "Distance rings unavailable. Route checks still work."}
         </div>
       )}
+      <LocateControl map={mapRef.current} state={geo.state} onClick={geo.request} />
+      {geoNotice && <div className="geo-notice">{geoNotice}</div>}
       {origin && (
         <div className="ring-legend">
           <button
@@ -1318,58 +1442,28 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
           </div>
         </div>
       )}
-      <aside className="app-sidebar">
-        <ModeToggle mode={mode} onChange={handleModeChange} />
-        {!showVerdictPanel && (
-          <div className="sidebar-intro">
-            <h2>Explore Santa Fe {mode === "walk" ? "on foot" : "by car"}</h2>
-            <p>
-              Plan a {mode === "walk" ? "walk" : "drive"} and discover stops worth a detour — historic sites,
-              galleries, landmarks, and scenic overlooks along your route.
-            </p>
-          </div>
-        )}
-        {showVerdictPanel && (
-          <VerdictPanel
-            distance_miles={activeResult?.distance_miles ?? 0}
-            duration_seconds={activeResult?.duration_seconds ?? 0}
-            within_limit={activeResult?.within_limit ?? false}
-            limit_miles={effectiveMilesFor(mode)}
-            isLoading={isLoading}
-            error={error}
-            retryAfterSeconds={retryAfterSeconds}
-            onReset={handleReset}
-            nearbyStops={filteredStops}
-            selectedStops={selectedStops}
-            stopLoading={stopLoading}
-            stopError={stopError}
-            onSelectStop={handleSelectStop}
-            onFocusStop={handleFocusStop}
-            activeCategories={activeCategories}
-            onToggleCategory={handleToggleCategory}
-            onToggleAllCategories={handleToggleAllCategories}
-            categoryCounts={categoryCounts}
-            detourLoading={detourLoading}
-            showingDetour={showingDetour}
+      {!isMobile && (
+        <aside className="app-sidebar">
+          <SidebarContents
             mode={mode}
-            shortestRoute={
-              showingDetour && result
-                ? {
-                    distance_miles: result.distance_miles,
-                    duration_seconds: result.duration_seconds,
-                    within_limit: result.within_limit,
-                  }
-                : null
-            }
-            onBackToShortest={showingDetour ? handleBackToShortest : null}
-            showAllStops={showAllStops}
-            onToggleShowAll={() => setShowAllStops((prev) => !prev)}
-            onPlayTour={showingDetour && detourResult && selectedStops.length >= 1 ? handlePlayTour : null}
-            savingTour={savingTour}
-            saveTourError={saveTourError}
+            handleModeChange={handleModeChange}
+            showVerdictPanel={showVerdictPanel}
+            verdictProps={verdictProps}
+            showModeToggle={true}
           />
-        )}
-      </aside>
+        </aside>
+      )}
+      {isMobile && (
+        <BottomSheet initialSnap="half" peekSummary={peekSummary} controlRef={sheetControlRef}>
+          <SidebarContents
+            mode={mode}
+            handleModeChange={handleModeChange}
+            showVerdictPanel={showVerdictPanel}
+            verdictProps={verdictProps}
+            showModeToggle={false}
+          />
+        </BottomSheet>
+      )}
     </div>
   );
 }

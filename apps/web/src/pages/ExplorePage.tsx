@@ -1,10 +1,14 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { AppHeader } from "../components/AppHeader";
 import { AppFooter } from "../components/AppFooter";
+import { BottomSheet } from "../components/BottomSheet";
 import { ExploreMap, type SelectedPoi, featureToSelectedPoi } from "../components/explore/ExploreMap";
 import { SearchBar } from "../components/explore/SearchBar";
+import { GeolocatePrompt } from "../components/GeolocatePrompt";
 import { CATEGORY_COLORS, type PlaceCategory } from "../data/places";
 import { getPois, type PoiFeature, type PoisResponse } from "../lib/api";
+import { useMediaQuery } from "../hooks/useMediaQuery";
+import type { SnapName } from "../lib/bottomSheet";
 
 const ALL_CATEGORIES: PlaceCategory[] = ["history", "art", "scenic", "culture", "civic"];
 
@@ -20,11 +24,55 @@ function defaultActiveCategories(): Set<PlaceCategory> {
   return new Set(ALL_CATEGORIES);
 }
 
+function PanelContents({
+  activeCategories,
+  onToggle,
+  onToggleAll,
+  pois,
+  displayedPoi,
+  fadingOut,
+}: {
+  activeCategories: Set<PlaceCategory>;
+  onToggle: (cat: PlaceCategory) => void;
+  onToggleAll: () => void;
+  pois: PoisResponse | null;
+  displayedPoi: SelectedPoi | null;
+  fadingOut: boolean;
+}) {
+  return (
+    <>
+      <ExplorePanel
+        activeCategories={activeCategories}
+        onToggle={onToggle}
+        onToggleAll={onToggleAll}
+        pois={pois}
+      />
+      {!displayedPoi && (
+        <div className="explore-intro">
+          <p>
+            Santa Fe's 400-year story is written into its streets, walls,
+            and landscape. This map plots {pois ? pois.features.length : "hundreds of"} places
+            across five categories — from sites on the National Register to scenic
+            overlooks and public art.
+          </p>
+          <p className="explore-intro__cta">Click any dot to learn more.</p>
+        </div>
+      )}
+      {displayedPoi && (
+        <PoiDetail key={displayedPoi.name} poi={displayedPoi} fadingOut={fadingOut} />
+      )}
+    </>
+  );
+}
+
 export function ExplorePage() {
+  const isMobile = useMediaQuery("(max-width: 768px)");
   const [activeCategories, setActiveCategories] = useState<Set<PlaceCategory>>(defaultActiveCategories);
   const [selectedPoi, setSelectedPoi] = useState<SelectedPoi | null>(null);
   const [pois, setPois] = useState<PoisResponse | null>(null);
   const focusPoiRef = useRef<(feature: PoiFeature) => void>(() => {});
+  const geolocateRef = useRef<() => void>(() => {});
+  const sheetControlRef = useRef<{ setSnap: (snap: SnapName) => void } | null>(null);
 
   useEffect(() => {
     getPois().then(setPois).catch((err) => console.warn("Failed to load POIs:", err));
@@ -85,6 +133,10 @@ export function ExplorePage() {
     );
   }, []);
 
+  const peekSummary = pois ? (
+    <>{pois.features.length} places · {activeCategories.size} layers</>
+  ) : null;
+
   return (
     <div className="app">
       <AppHeader />
@@ -95,7 +147,10 @@ export function ExplorePage() {
             onPoiSelect={setSelectedPoi}
             pois={pois}
             focusPoiRef={focusPoiRef}
+            geolocateRef={geolocateRef}
+            onGeolocateSuccess={() => sheetControlRef.current?.setSnap("peek")}
           />
+          <GeolocatePrompt onAccept={() => geolocateRef.current()} />
           {pois && (
             <SearchBar
               pois={pois.features}
@@ -103,32 +158,30 @@ export function ExplorePage() {
               onSelect={handleSearchSelect}
             />
           )}
-          <aside className="app-sidebar explore-sidebar">
-            <ExplorePanel
-              activeCategories={activeCategories}
-              onToggle={handleToggle}
-              onToggleAll={handleToggleAll}
-              pois={pois}
-            />
-            {!displayedPoi && (
-              <div className="explore-intro">
-                <p>
-                  Santa Fe's 400-year story is written into its streets, walls,
-                  and landscape. This map plots {pois ? pois.features.length : "hundreds of"} places
-                  across five categories — from sites on the National Register to scenic
-                  overlooks and public art.
-                </p>
-                <p className="explore-intro__cta">Click any dot to learn more.</p>
-              </div>
-            )}
-            {displayedPoi && (
-              <PoiDetail
-                key={displayedPoi.name}
-                poi={displayedPoi}
+          {!isMobile && (
+            <aside className="app-sidebar explore-sidebar">
+              <PanelContents
+                activeCategories={activeCategories}
+                onToggle={handleToggle}
+                onToggleAll={handleToggleAll}
+                pois={pois}
+                displayedPoi={displayedPoi}
                 fadingOut={fadingOut}
               />
-            )}
-          </aside>
+            </aside>
+          )}
+          {isMobile && (
+            <BottomSheet initialSnap="half" peekSummary={peekSummary} controlRef={sheetControlRef}>
+              <PanelContents
+                activeCategories={activeCategories}
+                onToggle={handleToggle}
+                onToggleAll={handleToggleAll}
+                pois={pois}
+                displayedPoi={displayedPoi}
+                fadingOut={fadingOut}
+              />
+            </BottomSheet>
+          )}
         </div>
       </div>
       <AppFooter />

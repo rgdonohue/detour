@@ -2,8 +2,11 @@ import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef, useState } from "react";
 import { getConfig } from "../../lib/api";
-import type { PoiFeature, PoisResponse } from "../../lib/api";
+import type { Config, PoiFeature, PoisResponse } from "../../lib/api";
 import type { PlaceCategory } from "../../data/places";
+import { useGeolocate } from "../../hooks/useGeolocate";
+import { LocateControl } from "../LocateControl";
+import { setYouAreHereLayer } from "../../lib/youAreHereLayer";
 
 const TONER_LITE_URL =
   "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png";
@@ -63,6 +66,8 @@ interface ExploreMapProps {
   onPoiSelect: (poi: SelectedPoi | null) => void;
   pois: PoisResponse | null;
   focusPoiRef?: { current: (feature: PoiFeature) => void };
+  geolocateRef?: { current: () => void };
+  onGeolocateSuccess?: () => void;
 }
 
 function buildCategoryFilter(
@@ -73,7 +78,7 @@ function buildCategoryFilter(
   return ["in", ["get", "category"], ["literal", Array.from(active)]];
 }
 
-export function ExploreMap({ activeCategories, onPoiSelect, pois, focusPoiRef }: ExploreMapProps) {
+export function ExploreMap({ activeCategories, onPoiSelect, pois, focusPoiRef, geolocateRef, onGeolocateSuccess }: ExploreMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const activeCategoriesRef = useRef<Set<PlaceCategory>>(activeCategories);
@@ -81,6 +86,55 @@ export function ExploreMap({ activeCategories, onPoiSelect, pois, focusPoiRef }:
   const onPoiSelectRef = useRef(onPoiSelect);
   onPoiSelectRef.current = onPoiSelect;
   const [mapLoaded, setMapLoaded] = useState(false);
+
+  const [config, setConfig] = useState<Config | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    getConfig().then((c) => { if (!cancelled) setConfig(c); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  const geo = useGeolocate({
+    centerCoords: config?.coordinates ?? [-105.9384, 35.6824],
+    maxMiles: config?.max_miles ?? 5,
+  });
+
+  const [geoNotice, setGeoNotice] = useState<string | null>(null);
+  const lastAppliedGeoOkRef = useRef<[number, number] | null>(null);
+  const onGeolocateSuccessRef = useRef(onGeolocateSuccess);
+  onGeolocateSuccessRef.current = onGeolocateSuccess;
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapLoaded) return;
+    if (geo.state === "ok" && geo.coords) {
+      if (lastAppliedGeoOkRef.current !== geo.coords) {
+        map.easeTo({ center: geo.coords, zoom: 15, duration: 800 });
+        setYouAreHereLayer(map, geo.coords);
+        lastAppliedGeoOkRef.current = geo.coords;
+        setGeoNotice(null);
+        if (onGeolocateSuccessRef.current) onGeolocateSuccessRef.current();
+      }
+    } else if (geo.state === "out-of-range") {
+      setYouAreHereLayer(map, null);
+      setGeoNotice("You're outside the Santa Fe area.");
+    } else if (geo.state === "denied") {
+      setGeoNotice("Location permission denied. Enable it in your browser settings.");
+    } else if (geo.state === "unavailable") {
+      setGeoNotice("Couldn't get your location.");
+    }
+  }, [geo.state, geo.coords, mapLoaded]);
+
+  useEffect(() => {
+    if (!geoNotice) return;
+    const t = setTimeout(() => setGeoNotice(null), 4000);
+    return () => clearTimeout(t);
+  }, [geoNotice]);
+
+  // Expose request() to the parent for the banner
+  useEffect(() => {
+    if (geolocateRef) geolocateRef.current = geo.request;
+  }, [geolocateRef, geo.request]);
 
   const hoverPopupRef = useRef<maplibregl.Popup | null>(null);
   const fadeStartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -247,5 +301,11 @@ export function ExploreMap({ activeCategories, onPoiSelect, pois, focusPoiRef }:
     map.setFilter(POI_CIRCLE_LAYER_ID, filter);
   }, [activeCategories]);
 
-  return <div ref={containerRef} className="map-container" />;
+  return (
+    <>
+      <div ref={containerRef} className="map-container" />
+      <LocateControl map={mapRef.current} state={geo.state} onClick={geo.request} />
+      {geoNotice && <div className="geo-notice">{geoNotice}</div>}
+    </>
+  );
 }
