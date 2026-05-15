@@ -67,6 +67,7 @@ interface ExploreMapProps {
   pois: PoisResponse | null;
   focusPoiRef?: { current: (feature: PoiFeature) => void };
   geolocateRef?: { current: () => void };
+  onGeolocateSuccess?: () => void;
 }
 
 function buildCategoryFilter(
@@ -77,7 +78,7 @@ function buildCategoryFilter(
   return ["in", ["get", "category"], ["literal", Array.from(active)]];
 }
 
-export function ExploreMap({ activeCategories, onPoiSelect, pois, focusPoiRef, geolocateRef }: ExploreMapProps) {
+export function ExploreMap({ activeCategories, onPoiSelect, pois, focusPoiRef, geolocateRef, onGeolocateSuccess }: ExploreMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const activeCategoriesRef = useRef<Set<PlaceCategory>>(activeCategories);
@@ -107,6 +108,7 @@ export function ExploreMap({ activeCategories, onPoiSelect, pois, focusPoiRef, g
       map.easeTo({ center: geo.coords, zoom: 15, duration: 800 });
       setYouAreHereLayer(map, geo.coords);
       setGeoNotice(null);
+      if (onGeolocateSuccess) onGeolocateSuccess();
     } else if (geo.state === "out-of-range" && geo.coords) {
       setYouAreHereLayer(map, geo.coords);
       setGeoNotice("You're not in Santa Fe — showing the city center.");
@@ -115,7 +117,7 @@ export function ExploreMap({ activeCategories, onPoiSelect, pois, focusPoiRef, g
     } else if (geo.state === "unavailable") {
       setGeoNotice("Couldn't get your location.");
     }
-  }, [geo.state, geo.coords, mapLoaded]);
+  }, [geo.state, geo.coords, mapLoaded, onGeolocateSuccess]);
 
   useEffect(() => {
     if (!geoNotice) return;

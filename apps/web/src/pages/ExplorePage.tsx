@@ -8,6 +8,7 @@ import { GeolocatePrompt } from "../components/GeolocatePrompt";
 import { CATEGORY_COLORS, type PlaceCategory } from "../data/places";
 import { getPois, type PoiFeature, type PoisResponse } from "../lib/api";
 import { useMediaQuery } from "../hooks/useMediaQuery";
+import type { SnapName } from "../lib/bottomSheet";
 
 const ALL_CATEGORIES: PlaceCategory[] = ["history", "art", "scenic", "culture", "civic"];
 
@@ -71,6 +72,7 @@ export function ExplorePage() {
   const [pois, setPois] = useState<PoisResponse | null>(null);
   const focusPoiRef = useRef<(feature: PoiFeature) => void>(() => {});
   const geolocateRef = useRef<() => void>(() => {});
+  const sheetControlRef = useRef<{ setSnap: (snap: SnapName) => void } | null>(null);
 
   useEffect(() => {
     getPois().then(setPois).catch((err) => console.warn("Failed to load POIs:", err));
@@ -146,6 +148,7 @@ export function ExplorePage() {
             pois={pois}
             focusPoiRef={focusPoiRef}
             geolocateRef={geolocateRef}
+            onGeolocateSuccess={() => sheetControlRef.current?.setSnap("peek")}
           />
           <GeolocatePrompt onAccept={() => geolocateRef.current()} />
           {pois && (
@@ -168,7 +171,7 @@ export function ExplorePage() {
             </aside>
           )}
           {isMobile && (
-            <BottomSheet initialSnap="half" peekSummary={peekSummary}>
+            <BottomSheet initialSnap="half" peekSummary={peekSummary} controlRef={sheetControlRef}>
               <PanelContents
                 activeCategories={activeCategories}
                 onToggle={handleToggle}

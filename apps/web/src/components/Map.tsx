@@ -894,6 +894,7 @@ export function Map({ resetRef, modeChangeRef, geolocateRef, mode, onModeChange 
         setClickPhase("set-destination");
       }
       map.easeTo({ center: geo.coords, zoom: 15, duration: 800 });
+      sheetControlRef.current?.setSnap("peek");
       setGeoNotice(null);
     } else if (geo.state === "out-of-range" && geo.coords) {
       setYouAreHereLayer(map, geo.coords);
