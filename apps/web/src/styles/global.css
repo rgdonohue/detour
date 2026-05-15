@@ -2811,3 +2811,11 @@ h1, h2, h3 {
     transition: bottom 220ms cubic-bezier(.2,.8,.2,1);
   }
 }
+
+/* Desktop: shift MapLibre bottom-right controls left of the 300px sidebar
+   so the locate button stays clickable. */
+@media (min-width: 769px) {
+  .map-wrapper .maplibregl-ctrl-bottom-right {
+    right: 312px;
+  }
+}
