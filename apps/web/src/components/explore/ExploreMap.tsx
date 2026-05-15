@@ -106,18 +106,18 @@ export function ExploreMap({ activeCategories, onPoiSelect, pois, focusPoiRef, g
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
+    if (!map || !mapLoaded) return;
     if (geo.state === "ok" && geo.coords) {
       if (lastAppliedGeoOkRef.current !== geo.coords) {
-        lastAppliedGeoOkRef.current = geo.coords;
         map.easeTo({ center: geo.coords, zoom: 15, duration: 800 });
         setYouAreHereLayer(map, geo.coords);
+        lastAppliedGeoOkRef.current = geo.coords;
         setGeoNotice(null);
         if (onGeolocateSuccessRef.current) onGeolocateSuccessRef.current();
       }
-    } else if (geo.state === "out-of-range" && geo.coords) {
-      setYouAreHereLayer(map, geo.coords);
-      setGeoNotice("You're not in Santa Fe — showing the city center.");
+    } else if (geo.state === "out-of-range") {
+      setYouAreHereLayer(map, null);
+      setGeoNotice("You're outside the Santa Fe area.");
     } else if (geo.state === "denied") {
       setGeoNotice("Location permission denied. Enable it in your browser settings.");
     } else if (geo.state === "unavailable") {

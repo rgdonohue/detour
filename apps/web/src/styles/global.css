@@ -2747,7 +2747,7 @@ h1, h2, h3 {
     display: flex;
     flex-direction: column;
     will-change: transform;
-    transform: translateY(calc(100% - 360px)); /* default = half (will be overwritten by inline style) */
+    transform: translateY(calc(100% - 45vh)); /* default = half (matches JS getSnapPx("half") on every viewport) */
   }
 
   @media (prefers-reduced-motion: reduce) {

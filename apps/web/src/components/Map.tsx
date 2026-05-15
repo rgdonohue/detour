@@ -892,19 +892,20 @@ export function Map({ resetRef, modeChangeRef, geolocateRef, mode, onModeChange 
     if (!map || !mapReady) return;
     if (geo.state === "ok" && geo.coords) {
       if (lastAppliedGeoOkRef.current !== geo.coords) {
-        lastAppliedGeoOkRef.current = geo.coords;
         setYouAreHereLayer(map, geo.coords);
         if (clickPhaseRef.current === "set-origin" && !originRef.current) {
+          placeOriginMarker(geo.coords);
           setOrigin(geo.coords);
           setClickPhase("set-destination");
         }
         map.easeTo({ center: geo.coords, zoom: 15, duration: 800 });
         sheetControlRef.current?.setSnap("peek");
+        lastAppliedGeoOkRef.current = geo.coords;
         setGeoNotice(null);
       }
-    } else if (geo.state === "out-of-range" && geo.coords) {
-      setYouAreHereLayer(map, geo.coords);
-      setGeoNotice("You're not in Santa Fe — showing the city center.");
+    } else if (geo.state === "out-of-range") {
+      setYouAreHereLayer(map, null);
+      setGeoNotice("You're outside the Santa Fe area.");
     } else if (geo.state === "denied") {
       setGeoNotice("Location permission denied. Enable it in your browser settings.");
     } else if (geo.state === "unavailable") {

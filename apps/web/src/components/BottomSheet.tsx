@@ -156,6 +156,21 @@ export function BottomSheet({
     setSnap(target);
   };
 
+  // Pointer-cancel means the gesture was aborted by the UA (iOS edge-swipe,
+  // system gestures). Abandon the drag and snap back to the committed snap
+  // instead of cycling.
+  const cancelDrag = () => {
+    if (!draggingRef.current) return;
+    draggingRef.current = false;
+    const sheet = sheetRef.current;
+    if (sheet) {
+      const h = getSnapPx(snap);
+      currentHeightRef.current = h;
+      sheet.style.transition = `transform ${TRANSITION_MS}ms cubic-bezier(.2,.8,.2,1)`;
+      sheet.style.transform = `translateY(calc(100% - ${h}px))`;
+    }
+  };
+
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
@@ -177,7 +192,7 @@ export function BottomSheet({
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={finishDrag}
-        onPointerCancel={finishDrag}
+        onPointerCancel={cancelDrag}
         onKeyDown={onKeyDown}
       >
         <span className="bottom-sheet__handle" aria-hidden="true" />
