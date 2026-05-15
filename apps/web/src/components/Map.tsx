@@ -1,6 +1,6 @@
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   getConfig,
@@ -19,6 +19,9 @@ import { useRouteCheck, type RouteCheckResult } from "../hooks/useRouteCheck";
 import { useGeolocate } from "../hooks/useGeolocate";
 import { VerdictPanel } from "./VerdictPanel";
 import { ModeToggle } from "./ModeToggle";
+import { BottomSheet } from "./BottomSheet";
+import { useMediaQuery } from "../hooks/useMediaQuery";
+import type { SnapName } from "../lib/bottomSheet";
 import { LocateControl } from "./LocateControl";
 import { CATEGORY_COLORS, type PlaceCategory } from "../data/places";
 import { setYouAreHereLayer } from "../lib/youAreHereLayer";
@@ -90,6 +93,31 @@ function toRouteCheckResult(
   };
 }
 
+function SidebarContents(props: {
+  mode: TravelMode;
+  handleModeChange: (m: TravelMode) => void;
+  showVerdictPanel: boolean;
+  verdictProps: ComponentProps<typeof VerdictPanel>;
+  showModeToggle: boolean;
+}) {
+  const { mode, handleModeChange, showVerdictPanel, verdictProps, showModeToggle } = props;
+  return (
+    <>
+      {showModeToggle && <ModeToggle mode={mode} onChange={handleModeChange} />}
+      {!showVerdictPanel && (
+        <div className="sidebar-intro">
+          <h2>Explore Santa Fe {mode === "walk" ? "on foot" : "by car"}</h2>
+          <p>
+            Plan a {mode === "walk" ? "walk" : "drive"} and discover stops worth a detour — historic sites,
+            galleries, landmarks, and scenic overlooks along your route.
+          </p>
+        </div>
+      )}
+      {showVerdictPanel && <VerdictPanel {...verdictProps} />}
+    </>
+  );
+}
+
 export function Map({ resetRef, modeChangeRef, geolocateRef, mode, onModeChange }: MapProps) {
   const navigate = useNavigate();
   const initialShareStateRef = useRef(parseShareableRouteState());
@@ -108,6 +136,7 @@ export function Map({ resetRef, modeChangeRef, geolocateRef, mode, onModeChange 
   const detourAbortControllerRef = useRef<AbortController | null>(null);
   const stopSuggestControllerRef = useRef<AbortController | null>(null);
   const onStopClickRef = useRef<(stop: StopSuggestion) => void>(() => {});
+  const sheetControlRef = useRef<{ setSnap: (snap: SnapName) => void } | null>(null);
 
   const [config, setConfig] = useState<Config | null>(null);
   const geo = useGeolocate({
@@ -1301,6 +1330,8 @@ export function Map({ resetRef, modeChangeRef, geolocateRef, mode, onModeChange 
     [nearbyStops, activeCategories],
   );
 
+  const isMobile = useMediaQuery("(max-width: 768px)");
+
   if (!config) {
     return <div className="map-loading">Loading map…</div>;
   }
@@ -1313,6 +1344,50 @@ export function Map({ resetRef, modeChangeRef, geolocateRef, mode, onModeChange 
       : !showVerdictPanel && clickPhase === "set-destination"
         ? "Now click your destination"
         : null;
+
+  const peekSummary = (() => {
+    if (activeResult?.within_limit === true) return <>{mode === "walk" ? "Walk" : "Drive"} · within limit</>;
+    if (activeResult?.within_limit === false) return <>{mode === "walk" ? "Walk" : "Drive"} · over limit</>;
+    return <>{mode === "walk" ? "Walk" : "Drive"} · tap map to start</>;
+  })();
+
+  const verdictProps: ComponentProps<typeof VerdictPanel> = {
+    distance_miles: activeResult?.distance_miles ?? 0,
+    duration_seconds: activeResult?.duration_seconds ?? 0,
+    within_limit: activeResult?.within_limit ?? false,
+    limit_miles: effectiveMilesFor(mode),
+    isLoading,
+    error,
+    retryAfterSeconds,
+    onReset: handleReset,
+    nearbyStops: filteredStops,
+    selectedStops,
+    stopLoading,
+    stopError,
+    onSelectStop: handleSelectStop,
+    onFocusStop: handleFocusStop,
+    activeCategories,
+    onToggleCategory: handleToggleCategory,
+    onToggleAllCategories: handleToggleAllCategories,
+    categoryCounts,
+    detourLoading,
+    showingDetour,
+    mode,
+    shortestRoute:
+      showingDetour && result
+        ? {
+            distance_miles: result.distance_miles,
+            duration_seconds: result.duration_seconds,
+            within_limit: result.within_limit,
+          }
+        : null,
+    onBackToShortest: showingDetour ? handleBackToShortest : null,
+    showAllStops,
+    onToggleShowAll: () => setShowAllStops((prev) => !prev),
+    onPlayTour: showingDetour && detourResult && selectedStops.length >= 1 ? handlePlayTour : null,
+    savingTour,
+    saveTourError,
+  };
 
   return (
     <div
@@ -1359,58 +1434,28 @@ export function Map({ resetRef, modeChangeRef, geolocateRef, mode, onModeChange 
           </div>
         </div>
       )}
-      <aside className="app-sidebar">
-        <ModeToggle mode={mode} onChange={handleModeChange} />
-        {!showVerdictPanel && (
-          <div className="sidebar-intro">
-            <h2>Explore Santa Fe {mode === "walk" ? "on foot" : "by car"}</h2>
-            <p>
-              Plan a {mode === "walk" ? "walk" : "drive"} and discover stops worth a detour — historic sites,
-              galleries, landmarks, and scenic overlooks along your route.
-            </p>
-          </div>
-        )}
-        {showVerdictPanel && (
-          <VerdictPanel
-            distance_miles={activeResult?.distance_miles ?? 0}
-            duration_seconds={activeResult?.duration_seconds ?? 0}
-            within_limit={activeResult?.within_limit ?? false}
-            limit_miles={effectiveMilesFor(mode)}
-            isLoading={isLoading}
-            error={error}
-            retryAfterSeconds={retryAfterSeconds}
-            onReset={handleReset}
-            nearbyStops={filteredStops}
-            selectedStops={selectedStops}
-            stopLoading={stopLoading}
-            stopError={stopError}
-            onSelectStop={handleSelectStop}
-            onFocusStop={handleFocusStop}
-            activeCategories={activeCategories}
-            onToggleCategory={handleToggleCategory}
-            onToggleAllCategories={handleToggleAllCategories}
-            categoryCounts={categoryCounts}
-            detourLoading={detourLoading}
-            showingDetour={showingDetour}
+      {!isMobile && (
+        <aside className="app-sidebar">
+          <SidebarContents
             mode={mode}
-            shortestRoute={
-              showingDetour && result
-                ? {
-                    distance_miles: result.distance_miles,
-                    duration_seconds: result.duration_seconds,
-                    within_limit: result.within_limit,
-                  }
-                : null
-            }
-            onBackToShortest={showingDetour ? handleBackToShortest : null}
-            showAllStops={showAllStops}
-            onToggleShowAll={() => setShowAllStops((prev) => !prev)}
-            onPlayTour={showingDetour && detourResult && selectedStops.length >= 1 ? handlePlayTour : null}
-            savingTour={savingTour}
-            saveTourError={saveTourError}
+            handleModeChange={handleModeChange}
+            showVerdictPanel={showVerdictPanel}
+            verdictProps={verdictProps}
+            showModeToggle={true}
           />
-        )}
-      </aside>
+        </aside>
+      )}
+      {isMobile && (
+        <BottomSheet initialSnap="half" peekSummary={peekSummary} controlRef={sheetControlRef}>
+          <SidebarContents
+            mode={mode}
+            handleModeChange={handleModeChange}
+            showVerdictPanel={showVerdictPanel}
+            verdictProps={verdictProps}
+            showModeToggle={false}
+          />
+        </BottomSheet>
+      )}
     </div>
   );
 }
