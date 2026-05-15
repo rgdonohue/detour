@@ -16,9 +16,12 @@ import { buildTourFromState } from "../lib/buildTour";
 import { optimizeStopOrder } from "../lib/optimizeStops";
 import { useServiceArea } from "../hooks/useServiceArea";
 import { useRouteCheck, type RouteCheckResult } from "../hooks/useRouteCheck";
+import { useGeolocate } from "../hooks/useGeolocate";
 import { VerdictPanel } from "./VerdictPanel";
 import { ModeToggle } from "./ModeToggle";
+import { LocateControl } from "./LocateControl";
 import { CATEGORY_COLORS, type PlaceCategory } from "../data/places";
+import { setYouAreHereLayer } from "../lib/youAreHereLayer";
 import {
   parseShareableRouteState,
   replaceShareableRouteState,
@@ -55,6 +58,7 @@ type ClickPhase = "set-origin" | "set-destination" | "route-shown";
 interface MapProps {
   resetRef?: { current: () => void };
   modeChangeRef?: { current: (mode: TravelMode) => void };
+  geolocateRef?: { current: () => void };
   mode: TravelMode;
   onModeChange: (mode: TravelMode) => void;
 }
@@ -86,7 +90,7 @@ function toRouteCheckResult(
   };
 }
 
-export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
+export function Map({ resetRef, modeChangeRef, geolocateRef, mode, onModeChange }: MapProps) {
   const navigate = useNavigate();
   const initialShareStateRef = useRef(parseShareableRouteState());
   const restoreStartedRef = useRef(false);
@@ -106,6 +110,11 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
   const onStopClickRef = useRef<(stop: StopSuggestion) => void>(() => {});
 
   const [config, setConfig] = useState<Config | null>(null);
+  const geo = useGeolocate({
+    centerCoords: config?.coordinates ?? FALLBACK_CONFIG.coordinates,
+    maxMiles: config?.max_miles ?? FALLBACK_CONFIG.max_miles,
+  });
+  const [geoNotice, setGeoNotice] = useState<string | null>(null);
   const [clickPhase, setClickPhase] = useState<ClickPhase>("set-origin");
   const [origin, setOrigin] = useState<[number, number] | null>(null);
   const [destination, setDestination] = useState<[number, number] | null>(null);
@@ -846,6 +855,36 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
     if (resetRef) resetRef.current = handleReset;
   }, [resetRef, handleReset]);
 
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+    if (geo.state === "ok" && geo.coords) {
+      setYouAreHereLayer(map, geo.coords);
+      if (clickPhase === "set-origin" && !origin) {
+        setOrigin(geo.coords);
+        setClickPhase("set-destination");
+      }
+      map.easeTo({ center: geo.coords, zoom: 15, duration: 800 });
+      setGeoNotice(null);
+    } else if (geo.state === "out-of-range" && geo.coords) {
+      setYouAreHereLayer(map, geo.coords);
+      setGeoNotice("You're not in Santa Fe — showing the city center.");
+    } else if (geo.state === "denied") {
+      setGeoNotice("Location permission denied. Enable it in your browser settings.");
+    } else if (geo.state === "unavailable") {
+      setGeoNotice("Couldn't get your location.");
+    }
+  }, [geo.state, geo.coords, clickPhase, origin, mapReady]);
+
+  useEffect(() => {
+    if (!geoNotice) return;
+    const t = setTimeout(() => setGeoNotice(null), 4000);
+    return () => clearTimeout(t);
+  }, [geoNotice]);
+
+  useEffect(() => {
+    if (geolocateRef) geolocateRef.current = geo.request;
+  }, [geolocateRef, geo.request]);
 
   useEffect(() => {
     if (!restoreReady) return;
@@ -1288,6 +1327,8 @@ export function Map({ resetRef, modeChangeRef, mode, onModeChange }: MapProps) {
             : "Distance rings unavailable. Route checks still work."}
         </div>
       )}
+      <LocateControl map={mapRef.current} state={geo.state} onClick={geo.request} />
+      {geoNotice && <div className="geo-notice">{geoNotice}</div>}
       {origin && (
         <div className="ring-legend">
           <button
