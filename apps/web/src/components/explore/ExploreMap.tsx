@@ -115,7 +115,7 @@ export function ExploreMap({ activeCategories, onPoiSelect, pois, focusPoiRef, g
     } else if (geo.state === "unavailable") {
       setGeoNotice("Couldn't get your location.");
     }
-  }, [geo.state, geo.coords]);
+  }, [geo.state, geo.coords, mapLoaded]);
 
   useEffect(() => {
     if (!geoNotice) return;
