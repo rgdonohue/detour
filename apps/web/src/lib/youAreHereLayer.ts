@@ -38,7 +38,7 @@ export function setYouAreHereLayer(
     source: SOURCE_ID,
     paint: {
       "circle-radius": 14,
-      "circle-color": "#C45B28",
+      "circle-color": "#2B8E8E",
       "circle-opacity": 0.18,
     },
   });
@@ -48,7 +48,7 @@ export function setYouAreHereLayer(
     source: SOURCE_ID,
     paint: {
       "circle-radius": 6,
-      "circle-color": "#C45B28",
+      "circle-color": "#2B8E8E",
       "circle-stroke-color": "#FAF7F2",
       "circle-stroke-width": 2,
     },
