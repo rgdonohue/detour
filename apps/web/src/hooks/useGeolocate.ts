@@ -16,7 +16,10 @@ export function useGeolocate(config: GeolocateConfig): UseGeolocateResult {
   const [coords, setCoords] = useState<[number, number] | null>(null);
   const inFlightRef = useRef(false);
   const mountedRef = useRef(true);
-  useEffect(() => () => { mountedRef.current = false; }, []);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
   const configRef = useRef(config);
   configRef.current = config;
 

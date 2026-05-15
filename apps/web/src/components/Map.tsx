@@ -167,6 +167,9 @@ export function Map({ resetRef, modeChangeRef, geolocateRef, mode, onModeChange 
   showRingsRef.current = showRings;
   const showAllStopsRef = useRef(false);
   showAllStopsRef.current = showAllStops;
+  const clickPhaseRef = useRef(clickPhase);
+  clickPhaseRef.current = clickPhase;
+  const lastAppliedGeoOkRef = useRef<[number, number] | null>(null);
 
   const {
     polygon,
@@ -888,14 +891,17 @@ export function Map({ resetRef, modeChangeRef, geolocateRef, mode, onModeChange 
     const map = mapRef.current;
     if (!map || !mapReady) return;
     if (geo.state === "ok" && geo.coords) {
-      setYouAreHereLayer(map, geo.coords);
-      if (clickPhase === "set-origin" && !origin) {
-        setOrigin(geo.coords);
-        setClickPhase("set-destination");
+      if (lastAppliedGeoOkRef.current !== geo.coords) {
+        lastAppliedGeoOkRef.current = geo.coords;
+        setYouAreHereLayer(map, geo.coords);
+        if (clickPhaseRef.current === "set-origin" && !originRef.current) {
+          setOrigin(geo.coords);
+          setClickPhase("set-destination");
+        }
+        map.easeTo({ center: geo.coords, zoom: 15, duration: 800 });
+        sheetControlRef.current?.setSnap("peek");
+        setGeoNotice(null);
       }
-      map.easeTo({ center: geo.coords, zoom: 15, duration: 800 });
-      sheetControlRef.current?.setSnap("peek");
-      setGeoNotice(null);
     } else if (geo.state === "out-of-range" && geo.coords) {
       setYouAreHereLayer(map, geo.coords);
       setGeoNotice("You're not in Santa Fe — showing the city center.");
@@ -904,7 +910,7 @@ export function Map({ resetRef, modeChangeRef, geolocateRef, mode, onModeChange 
     } else if (geo.state === "unavailable") {
       setGeoNotice("Couldn't get your location.");
     }
-  }, [geo.state, geo.coords, clickPhase, origin, mapReady]);
+  }, [geo.state, geo.coords, mapReady]);
 
   useEffect(() => {
     if (!geoNotice) return;

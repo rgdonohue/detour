@@ -100,15 +100,21 @@ export function ExploreMap({ activeCategories, onPoiSelect, pois, focusPoiRef, g
   });
 
   const [geoNotice, setGeoNotice] = useState<string | null>(null);
+  const lastAppliedGeoOkRef = useRef<[number, number] | null>(null);
+  const onGeolocateSuccessRef = useRef(onGeolocateSuccess);
+  onGeolocateSuccessRef.current = onGeolocateSuccess;
 
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
     if (geo.state === "ok" && geo.coords) {
-      map.easeTo({ center: geo.coords, zoom: 15, duration: 800 });
-      setYouAreHereLayer(map, geo.coords);
-      setGeoNotice(null);
-      if (onGeolocateSuccess) onGeolocateSuccess();
+      if (lastAppliedGeoOkRef.current !== geo.coords) {
+        lastAppliedGeoOkRef.current = geo.coords;
+        map.easeTo({ center: geo.coords, zoom: 15, duration: 800 });
+        setYouAreHereLayer(map, geo.coords);
+        setGeoNotice(null);
+        if (onGeolocateSuccessRef.current) onGeolocateSuccessRef.current();
+      }
     } else if (geo.state === "out-of-range" && geo.coords) {
       setYouAreHereLayer(map, geo.coords);
       setGeoNotice("You're not in Santa Fe — showing the city center.");
@@ -117,7 +123,7 @@ export function ExploreMap({ activeCategories, onPoiSelect, pois, focusPoiRef, g
     } else if (geo.state === "unavailable") {
       setGeoNotice("Couldn't get your location.");
     }
-  }, [geo.state, geo.coords, mapLoaded, onGeolocateSuccess]);
+  }, [geo.state, geo.coords, mapLoaded]);
 
   useEffect(() => {
     if (!geoNotice) return;
