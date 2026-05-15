@@ -3,6 +3,7 @@ import { AppHeader } from "../components/AppHeader";
 import { AppFooter } from "../components/AppFooter";
 import { ExploreMap, type SelectedPoi, featureToSelectedPoi } from "../components/explore/ExploreMap";
 import { SearchBar } from "../components/explore/SearchBar";
+import { GeolocatePrompt } from "../components/GeolocatePrompt";
 import { CATEGORY_COLORS, type PlaceCategory } from "../data/places";
 import { getPois, type PoiFeature, type PoisResponse } from "../lib/api";
 
@@ -25,6 +26,7 @@ export function ExplorePage() {
   const [selectedPoi, setSelectedPoi] = useState<SelectedPoi | null>(null);
   const [pois, setPois] = useState<PoisResponse | null>(null);
   const focusPoiRef = useRef<(feature: PoiFeature) => void>(() => {});
+  const geolocateRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     getPois().then(setPois).catch((err) => console.warn("Failed to load POIs:", err));
@@ -95,7 +97,9 @@ export function ExplorePage() {
             onPoiSelect={setSelectedPoi}
             pois={pois}
             focusPoiRef={focusPoiRef}
+            geolocateRef={geolocateRef}
           />
+          <GeolocatePrompt onAccept={() => geolocateRef.current()} />
           {pois && (
             <SearchBar
               pois={pois.features}
