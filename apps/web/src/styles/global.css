@@ -2606,3 +2606,208 @@ h1, h2, h3 {
     font-size: 0.8125rem;
   }
 }
+
+/* ============================================================
+   Locate control (MapLibre custom IControl)
+   ============================================================ */
+
+.locate-control {
+  /* Sits in the bottom-right MapLibre control stack */
+}
+
+.locate-control__btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: var(--warm-cream, #FAF7F2);
+  color: #6b4a30;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.locate-control__btn:hover {
+  color: #C45B28;
+}
+
+.locate-control__btn--active {
+  color: #C45B28;
+}
+
+.locate-control__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.locate-control__spinner {
+  animation: locate-spin 0.9s linear infinite;
+}
+
+@keyframes locate-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ============================================================
+   Geolocate first-visit banner
+   ============================================================ */
+
+.geolocate-prompt {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(250, 247, 242, 0.97);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(44, 24, 16, 0.08);
+  border-radius: 8px;
+  padding: 0.625rem 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  z-index: 30;
+  box-shadow: 0 4px 16px rgba(44, 24, 16, 0.08);
+  animation: geo-prompt-fade-in 0.25s ease;
+  font-size: 0.875rem;
+  max-width: calc(100% - 24px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .geolocate-prompt {
+    animation: none;
+  }
+}
+
+@keyframes geo-prompt-fade-in {
+  from { opacity: 0; transform: translate(-50%, -8px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+
+.geolocate-prompt__actions {
+  display: flex;
+  gap: 0.375rem;
+}
+
+.geolocate-prompt__btn {
+  border: none;
+  padding: 0.375rem 0.75rem;
+  border-radius: 6px;
+  background: #C45B28;
+  color: white;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.geolocate-prompt__btn--secondary {
+  background: transparent;
+  color: #6b4a30;
+}
+
+/* ============================================================
+   Geolocate inline notice (out-of-range, denied, unavailable)
+   ============================================================ */
+
+.geo-notice {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(250, 247, 242, 0.97);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(44, 24, 16, 0.12);
+  border-radius: 8px;
+  padding: 0.5rem 0.875rem;
+  z-index: 29;
+  font-size: 0.8125rem;
+  color: #6b4a30;
+  max-width: calc(100% - 24px);
+}
+
+/* ============================================================
+   Bottom sheet (mobile only — wrapper visible at <=768px)
+   ============================================================ */
+
+@media (max-width: 768px) {
+  .bottom-sheet {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 90dvh;
+    /* Fallback for browsers without dvh */
+    max-height: 90vh;
+    background: rgba(250, 247, 242, 0.97);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(44, 24, 16, 0.08);
+    box-shadow: 0 -4px 16px rgba(44, 24, 16, 0.06);
+    z-index: 12;
+    display: flex;
+    flex-direction: column;
+    will-change: transform;
+    transform: translateY(calc(100% - 360px)); /* default = half (will be overwritten by inline style) */
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .bottom-sheet {
+      transition: none !important;
+    }
+  }
+
+  .bottom-sheet__header {
+    flex: 0 0 auto;
+    padding: 0.5rem 0.75rem 0.625rem;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.375rem;
+  }
+
+  .bottom-sheet__header:active {
+    cursor: grabbing;
+  }
+
+  .bottom-sheet__header:focus-visible {
+    outline: 2px solid #C45B28;
+    outline-offset: -2px;
+    border-radius: 4px;
+  }
+
+  .bottom-sheet__handle {
+    width: 36px;
+    height: 4px;
+    border-radius: 999px;
+    background: rgba(196, 91, 40, 0.45);
+  }
+
+  .bottom-sheet__peek-summary {
+    font-size: 0.8125rem;
+    color: #6b4a30;
+    text-align: center;
+  }
+
+  .bottom-sheet__body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* When the BottomSheet wrapper is rendered, hide the legacy mobile sidebar overrides */
+  .app-sidebar.app-sidebar--has-sheet {
+    display: none;
+  }
+
+  /* Push the MapLibre control stack up so it stays above the sheet */
+  .map-container .maplibregl-ctrl-bottom-right,
+  .map-container .maplibregl-ctrl-bottom-left {
+    bottom: calc(var(--sheet-height, 80px) + 8px);
+    transition: bottom 220ms cubic-bezier(.2,.8,.2,1);
+  }
+}
