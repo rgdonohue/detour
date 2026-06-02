@@ -289,3 +289,40 @@ def test_run_qc_warns_without_manifest(tmp_path):
     ])
     result = poi_qc.run_qc(csv_path)
     assert result.info["manifest_present"] is False
+
+
+import subprocess
+import sys
+from pathlib import Path as _Path
+
+
+# test file: repo/apps/api/tests/test_poi_qc.py -> parents[3] is the repo root
+_REPO_ROOT = _Path(__file__).resolve().parents[3]
+_CLI = _REPO_ROOT / "scripts" / "qc_pois.py"
+
+
+def test_cli_exits_zero_on_clean_csv(tmp_path):
+    csv_path = tmp_path / "v.csv"
+    _write_csv(csv_path, [
+        _csv_row("p1", "osm:relation/13422888", "Tudesque House", -105.93883405, 35.68407725),
+    ])
+    proc = subprocess.run(
+        [sys.executable, str(_CLI), "--csv", str(csv_path)],
+        capture_output=True, text=True,
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert "PASS" in proc.stdout
+
+
+def test_cli_exits_one_on_duplicate_cluster(tmp_path):
+    csv_path = tmp_path / "v.csv"
+    _write_csv(csv_path, [
+        _csv_row("p1", "osm:relation/13422888", "Tudesque House", -105.93883405, 35.68407725),
+        _csv_row("p2", "osm:way/461729209", "Roque Tudesque House East", -105.9387482642101, 35.684025653980406),
+    ])
+    proc = subprocess.run(
+        [sys.executable, str(_CLI), "--csv", str(csv_path)],
+        capture_output=True, text=True,
+    )
+    assert proc.returncode == 1
+    assert "FAIL" in proc.stdout
