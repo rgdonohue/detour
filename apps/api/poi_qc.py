@@ -56,3 +56,12 @@ def haversine_m(lon1: float, lat1: float, lon2: float, lat2: float) -> float:
         * math.sin(d_lon / 2) ** 2
     )
     return EARTH_RADIUS_M * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
+def check_schema(fieldnames: list[str] | None) -> list[str]:
+    """Return one failure message per missing required column. Extra columns are allowed."""
+    present = set(fieldnames or [])
+    return [
+        f"missing required column: {col}"
+        for col in REQUIRED_COLUMNS if col not in present
+    ]

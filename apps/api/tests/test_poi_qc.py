@@ -28,3 +28,18 @@ def test_haversine_known_short_distance():
 
 def test_haversine_zero():
     assert poi_qc.haversine_m(-105.9, 35.68, -105.9, 35.68) == 0.0
+
+
+def test_check_schema_all_present():
+    assert poi_qc.check_schema(list(poi_qc.REQUIRED_COLUMNS) + ["merged_from"]) == []
+
+
+def test_check_schema_reports_missing():
+    cols = [c for c in poi_qc.REQUIRED_COLUMNS if c != "lat"]
+    failures = poi_qc.check_schema(cols)
+    assert failures == ["missing required column: lat"]
+
+
+def test_check_schema_none_fieldnames():
+    failures = poi_qc.check_schema(None)
+    assert len(failures) == len(poi_qc.REQUIRED_COLUMNS)
