@@ -146,3 +146,58 @@ def test_colocation_excludes_same_feature_clusters():
 def test_colocation_excludes_lone_rows():
     rows = [_row(2, "g1", "Patina Gallery", -105.9300, 35.6850)]
     assert poi_qc.count_colocation_clusters(rows) == 0
+
+
+def test_manifest_allowlist_extracts_colocated_members():
+    manifest = {"clusters": [
+        {"disposition": "collapsed", "survivor_poi_id": "p-rel", "dropped": []},
+        {"disposition": "left_colocated", "members": ["g1", "g2"]},
+    ]}
+    assert poi_qc.manifest_allowlist(manifest) == [{"g1", "g2"}]
+
+
+def test_filter_allowlisted_drops_covered_cluster():
+    cluster = [_row(2, "g1", "A Gallery", -105.93, 35.685),
+               _row(3, "g2", "B Gallery", -105.93, 35.685)]
+    # (these share no token in reality; constructed directly to test filtering)
+    remaining = poi_qc.filter_allowlisted([cluster], [{"g1", "g2"}])
+    assert remaining == []
+
+
+def test_filter_allowlisted_keeps_uncovered_cluster():
+    remaining = poi_qc.filter_allowlisted([TUDESQUE_ROWS], [{"g1", "g2"}])
+    assert len(remaining) == 1
+
+
+def test_cross_check_passes_when_consistent():
+    rows = [_row(2, "osm:relation/13422888", "Tudesque House", -105.93883405, 35.68407725)]
+    rows[0].poi_id = "p-rel"
+    manifest = {
+        "summary": {"rows_after": 1},
+        "clusters": [{"disposition": "collapsed", "survivor_poi_id": "p-rel",
+                      "dropped": [{"dedupe_key": "osm:way/461729209"}]}],
+    }
+    assert poi_qc.cross_check_manifest(rows, manifest) == []
+
+
+def test_cross_check_flags_dropped_still_present():
+    rows = [_row(2, "osm:way/461729209", "Roque Tudesque House East", -105.9387, 35.6840)]
+    manifest = {"clusters": [{"disposition": "collapsed", "survivor_poi_id": "p-rel",
+                              "dropped": [{"dedupe_key": "osm:way/461729209"}]}]}
+    failures = poi_qc.cross_check_manifest(rows, manifest)
+    assert any("still present" in f for f in failures)
+
+
+def test_cross_check_flags_missing_survivor():
+    rows = [_row(2, "k1", "Something Else", -105.93, 35.685)]
+    manifest = {"clusters": [{"disposition": "collapsed", "survivor_poi_id": "p-rel",
+                              "dropped": []}]}
+    failures = poi_qc.cross_check_manifest(rows, manifest)
+    assert any("survivor" in f and "missing" in f for f in failures)
+
+
+def test_cross_check_flags_rowcount_mismatch():
+    rows = [_row(2, "k1", "Something", -105.93, 35.685)]
+    manifest = {"summary": {"rows_after": 99}, "clusters": []}
+    failures = poi_qc.cross_check_manifest(rows, manifest)
+    assert any("rows_after" in f for f in failures)

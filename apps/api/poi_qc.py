@@ -203,3 +203,56 @@ def count_colocation_clusters(
         if not shares_token:
             count += 1
     return count
+
+
+def load_manifest(path: Path) -> dict:
+    """Read the curator merge manifest JSON."""
+    with path.open(encoding="utf-8") as f:
+        return json.load(f)
+
+
+def manifest_allowlist(manifest: dict) -> list[set[str]]:
+    """Member-key sets for clusters the curator deliberately left co-located."""
+    return [
+        set(cluster.get("members", []))
+        for cluster in manifest.get("clusters", [])
+        if cluster.get("disposition") == "left_colocated"
+    ]
+
+
+def filter_allowlisted(
+    clusters: list[list[PoiRow]], allowlist: list[set[str]],
+) -> list[list[PoiRow]]:
+    """Drop residual clusters fully covered by a manifest 'left_colocated' member set."""
+    remaining: list[list[PoiRow]] = []
+    for cluster in clusters:
+        keys = {row.dedupe_key for row in cluster}
+        if any(keys <= allowed for allowed in allowlist):
+            continue
+        remaining.append(cluster)
+    return remaining
+
+
+def cross_check_manifest(rows: list[PoiRow], manifest: dict) -> list[str]:
+    """Assert every collapsed cluster is reflected in the CSV and counts agree."""
+    failures: list[str] = []
+    present_keys = {row.dedupe_key for row in rows}
+    present_poi_ids = {row.poi_id for row in rows}
+
+    for cluster in manifest.get("clusters", []):
+        if cluster.get("disposition") != "collapsed":
+            continue
+        survivor = cluster.get("survivor_poi_id", "")
+        if survivor and survivor not in present_poi_ids:
+            failures.append(f"manifest: collapsed survivor {survivor!r} missing from CSV")
+        for dropped in cluster.get("dropped", []):
+            dk = dropped.get("dedupe_key", "")
+            if dk and dk in present_keys:
+                failures.append(f"manifest: dropped key {dk!r} still present in CSV")
+
+    rows_after = manifest.get("summary", {}).get("rows_after")
+    if rows_after is not None and rows_after != len(rows):
+        failures.append(
+            f"manifest: summary.rows_after={rows_after} but CSV has {len(rows)} rows"
+        )
+    return failures
