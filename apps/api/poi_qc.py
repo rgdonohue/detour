@@ -44,3 +44,15 @@ def significant_tokens(name: str) -> set[str]:
     """Lowercase name tokens with generic/structural words and 1-char tokens removed."""
     tokens = _TOKEN_SPLIT.split(name.casefold())
     return {t for t in tokens if len(t) > 1 and t not in GENERIC_TOKENS}
+
+
+def haversine_m(lon1: float, lat1: float, lon2: float, lat2: float) -> float:
+    """Great-circle distance in meters."""
+    d_lat = math.radians(lat2 - lat1)
+    d_lon = math.radians(lon2 - lon1)
+    a = (
+        math.sin(d_lat / 2) ** 2
+        + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2))
+        * math.sin(d_lon / 2) ** 2
+    )
+    return EARTH_RADIUS_M * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
