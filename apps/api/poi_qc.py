@@ -211,12 +211,18 @@ def load_manifest(path: Path) -> dict:
         return json.load(f)
 
 
+def _clusters(manifest: dict) -> list:
+    """Manifest clusters as a list; a non-list value is treated as empty."""
+    clusters = manifest.get("clusters", [])
+    return clusters if isinstance(clusters, list) else []
+
+
 def manifest_allowlist(manifest: dict) -> list[set[str]]:
     """Member-key sets for clusters the curator deliberately left co-located."""
     return [
         set(cluster.get("members", []))
-        for cluster in manifest.get("clusters", [])
-        if cluster.get("disposition") == "left_colocated"
+        for cluster in _clusters(manifest)
+        if isinstance(cluster, dict) and cluster.get("disposition") == "left_colocated"
     ]
 
 
@@ -239,7 +245,9 @@ def cross_check_manifest(rows: list[PoiRow], manifest: dict) -> list[str]:
     present_keys = {row.dedupe_key for row in rows}
     present_poi_ids = {row.poi_id for row in rows}
 
-    for cluster in manifest.get("clusters", []):
+    for cluster in _clusters(manifest):
+        if not isinstance(cluster, dict):
+            continue
         if cluster.get("disposition") != "collapsed":
             continue
         survivor = cluster.get("survivor_poi_id", "")
@@ -267,10 +275,23 @@ class QcResult:
 
 def run_qc(csv_path: Path, manifest_path: Path | None = None) -> QcResult:
     """Run all gate checks against a candidate CSV. Pure: returns a result, never exits."""
-    with Path(csv_path).open(newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        fieldnames = reader.fieldnames
-        raw_rows = list(reader)
+    # encoding="utf-8-sig" so a spreadsheet-exported BOM doesn't poison fieldnames[0].
+    try:
+        with Path(csv_path).open(newline="", encoding="utf-8-sig") as f:
+            reader = csv.DictReader(f)
+            fieldnames = reader.fieldnames
+            raw_rows = list(reader)
+    except (FileNotFoundError, OSError) as e:
+        return QcResult(
+            passed=False,
+            failures=[f"could not read csv: {csv_path} ({e})"],
+            info={
+                "row_count": 0,
+                "colocation_clusters": 0,
+                "manifest_present": False,
+                "review_candidates": None,
+            },
+        )
 
     failures: list[str] = list(check_schema(fieldnames))
 
@@ -281,9 +302,23 @@ def run_qc(csv_path: Path, manifest_path: Path | None = None) -> QcResult:
     allowlist: list[set[str]] = []
     manifest_present = manifest_path is not None and Path(manifest_path).exists()
     if manifest_present:
-        manifest = load_manifest(Path(manifest_path))
-        allowlist = manifest_allowlist(manifest)
-        failures.extend(cross_check_manifest(rows, manifest))
+        try:
+            manifest = load_manifest(Path(manifest_path))
+            if not isinstance(manifest, dict):
+                raise TypeError(f"top-level JSON is {type(manifest).__name__}, expected object")
+            clusters = manifest.get("clusters", [])
+            if not isinstance(clusters, list):
+                raise TypeError(f"clusters is {type(clusters).__name__}, expected list")
+            if any(not isinstance(c, dict) for c in clusters):
+                raise TypeError("clusters contains a non-object entry")
+            allowlist = manifest_allowlist(manifest)
+            failures.extend(cross_check_manifest(rows, manifest))
+        except (json.JSONDecodeError, ValueError, TypeError, AttributeError) as e:
+            # A structurally odd manifest is a clean gate failure, never a traceback.
+            # Allowlist stays empty; residual-cluster detection below still runs.
+            manifest = {}
+            allowlist = []
+            failures.append(f"manifest: unreadable or malformed ({e})")
 
     residual = filter_allowlisted(find_residual_clusters(rows), allowlist)
     for cluster in residual:

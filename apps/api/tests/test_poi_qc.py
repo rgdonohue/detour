@@ -1,4 +1,10 @@
 """Tests for the POI QC promotion gate."""
+import csv as _csv
+import json as _json
+import subprocess
+import sys
+from pathlib import Path as _Path
+
 import poi_qc
 
 
@@ -203,10 +209,6 @@ def test_cross_check_flags_rowcount_mismatch():
     assert any("rows_after" in f for f in failures)
 
 
-import csv as _csv
-import json as _json
-
-
 _CSV_HEADER = list(poi_qc.REQUIRED_COLUMNS)
 
 
@@ -291,9 +293,54 @@ def test_run_qc_warns_without_manifest(tmp_path):
     assert result.info["manifest_present"] is False
 
 
-import subprocess
-import sys
-from pathlib import Path as _Path
+def test_run_qc_tolerates_utf8_bom(tmp_path):
+    # A CSV exported from a spreadsheet carries a UTF-8 BOM; utf-8-sig strips it
+    # so DictReader.fieldnames[0] is "poi_id", not "﻿poi_id".
+    csv_path = tmp_path / "bom.csv"
+    with open(csv_path, "w", newline="", encoding="utf-8-sig") as f:
+        writer = _csv.DictWriter(f, fieldnames=_CSV_HEADER, extrasaction="ignore")
+        writer.writeheader()
+        full = {c: "" for c in _CSV_HEADER}
+        full.update(_csv_row("p1", "osm:relation/13422888", "Tudesque House",
+                             -105.93883405, 35.68407725))
+        writer.writerow(full)
+    result = poi_qc.run_qc(csv_path)
+    assert not any("missing required column" in f for f in result.failures), result.failures
+
+
+def test_run_qc_missing_csv_is_clean_failure():
+    result = poi_qc.run_qc(_Path("/nonexistent/nope.csv"))
+    assert result.passed is False
+    assert any("could not read" in f or "not found" in f for f in result.failures)
+    # info keys must match the normal path so the CLI's print lines don't KeyError
+    assert result.info["row_count"] == 0
+    assert result.info["colocation_clusters"] == 0
+    assert result.info["manifest_present"] is False
+
+
+def test_run_qc_malformed_manifest_invalid_json(tmp_path):
+    csv_path = tmp_path / "v.csv"
+    _write_csv(csv_path, [
+        _csv_row("p1", "osm:relation/13422888", "Tudesque House", -105.93883405, 35.68407725),
+    ])
+    manifest_path = tmp_path / "m.json"
+    manifest_path.write_text("{not json", encoding="utf-8")
+    result = poi_qc.run_qc(csv_path, manifest_path)
+    assert result.passed is False
+    assert any("manifest" in f for f in result.failures), result.failures
+
+
+def test_run_qc_malformed_manifest_clusters_not_list(tmp_path):
+    csv_path = tmp_path / "v.csv"
+    _write_csv(csv_path, [
+        _csv_row("p1", "osm:relation/13422888", "Tudesque House", -105.93883405, 35.68407725),
+    ])
+    manifest_path = tmp_path / "m.json"
+    # valid JSON, but clusters is a string and one entry is a non-dict
+    manifest_path.write_text(_json.dumps({"clusters": "oops"}), encoding="utf-8")
+    result = poi_qc.run_qc(csv_path, manifest_path)
+    assert result.passed is False
+    assert any("manifest" in f for f in result.failures), result.failures
 
 
 # test file: repo/apps/api/tests/test_poi_qc.py -> parents[3] is the repo root
