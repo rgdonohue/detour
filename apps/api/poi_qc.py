@@ -131,3 +131,46 @@ def parse_rows(raw_rows: list[dict[str, str]]) -> tuple[list[PoiRow], list[str]]
         ))
 
     return parsed, failures
+
+
+def _make_parent(n: int) -> list[int]:
+    return list(range(n))
+
+
+def _find(parent: list[int], x: int) -> int:
+    while parent[x] != x:
+        parent[x] = parent[parent[x]]
+        x = parent[x]
+    return x
+
+
+def _union(parent: list[int], a: int, b: int) -> None:
+    ra, rb = _find(parent, a), _find(parent, b)
+    if ra != rb:
+        parent[ra] = rb
+
+
+def _components(parent: list[int], rows: list[PoiRow]) -> list[list[PoiRow]]:
+    groups: dict[int, list[PoiRow]] = {}
+    for i in range(len(rows)):
+        groups.setdefault(_find(parent, i), []).append(rows[i])
+    return list(groups.values())
+
+
+def find_residual_clusters(
+    rows: list[PoiRow], radius_m: float = CLUSTER_RADIUS_M,
+) -> list[list[PoiRow]]:
+    """Connected components where rows are within radius AND share a significant token.
+
+    These are suspected same-feature duplicates. Two rows never merge on proximity
+    alone (no shared token) or on name alone (beyond radius).
+    """
+    n = len(rows)
+    parent = _make_parent(n)
+    for i in range(n):
+        for j in range(i + 1, n):
+            if not (rows[i].tokens & rows[j].tokens):
+                continue
+            if haversine_m(rows[i].lon, rows[i].lat, rows[j].lon, rows[j].lat) <= radius_m:
+                _union(parent, i, j)
+    return [g for g in _components(parent, rows) if len(g) > 1]

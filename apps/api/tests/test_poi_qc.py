@@ -88,3 +88,42 @@ def test_parse_rows_flags_unusable_name():
 def test_parse_rows_flags_duplicate_dedupe_key():
     rows, failures = poi_qc.parse_rows([_raw(), _raw(poi_id="p2", name="Other")])
     assert any("duplicate dedupe_key" in f for f in failures)
+
+
+def _row(idx, key, name, lon, lat):
+    return poi_qc.PoiRow(
+        index=idx, poi_id=key, dedupe_key=key, name=name,
+        category="history", lon=lon, lat=lat, tokens=poi_qc.significant_tokens(name),
+    )
+
+
+TUDESQUE_ROWS = [
+    _row(2, "osm:relation/13422888", "Tudesque House", -105.93883405, 35.68407725),
+    _row(3, "osm:way/461729209", "Roque Tudesque House East", -105.9387482642101, 35.684025653980406),
+    _row(4, "osm:way/461729208", "Roque Tudesque House West", -105.93903457267577, 35.6841571533804),
+    _row(5, "osm:node/6479254097", "Roque Tudesque House", -105.938944, 35.6841299),
+]
+
+
+def test_residual_clusters_collapses_tudesque():
+    clusters = poi_qc.find_residual_clusters(TUDESQUE_ROWS)
+    assert len(clusters) == 1
+    assert len(clusters[0]) == 4
+
+
+def test_residual_clusters_ignores_distinct_galleries():
+    # Two galleries ~2 m apart but no shared significant token
+    rows = [
+        _row(2, "g1", "Patina Gallery", -105.9300, 35.6850),
+        _row(3, "g2", "Sorrel Sky Gallery", -105.93001, 35.68501),
+    ]
+    assert poi_qc.find_residual_clusters(rows) == []
+
+
+def test_residual_clusters_ignores_far_same_name():
+    # River Park E/W: share "river" token but ~570 m apart -> not merged
+    rows = [
+        _row(2, "r1", "Santa Fe River Park East", -105.9300, 35.6850),
+        _row(3, "r2", "Santa Fe River Park West", -105.9360, 35.6850),
+    ]
+    assert poi_qc.find_residual_clusters(rows) == []
