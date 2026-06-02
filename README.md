@@ -60,6 +60,11 @@ cache/   persisted area-ring GeoJSON when generated locally
 
 - **Frontend:** React, TypeScript, Vite, MapLibre GL JS.
 - **Backend:** FastAPI, Python 3.11, with pytest-based API utility tests.
+- **POI QC gate:** before promoting a new curator POI CSV into `apps/api/data/`,
+  run `python scripts/qc_pois.py --csv <file> --manifest <manifest.json>`. Exit 0
+  means safe to promote; exit 1 lists the blocking issues (residual duplicate
+  pins, schema drift, bad coordinates). See
+  `docs/superpowers/specs/2026-06-01-poi-qc-gate-design.md`.
 - **Routing:** ORS directions endpoint `/v2/directions/{profile}/geojson`, using `preference="shortest"` for `driving-car` and `foot-walking`.
 - **Isochrones:** ORS endpoint `/v2/isochrones/{profile}`, requesting multiple distance ranges in one call.
 - **POIs:** an ORS `/pois` wrapper exists, but live ORS POI selection is currently disabled; current Explore and Build POIs come from curated/static Santa Fe data.
