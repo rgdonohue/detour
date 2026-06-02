@@ -174,3 +174,32 @@ def find_residual_clusters(
             if haversine_m(rows[i].lon, rows[i].lat, rows[j].lon, rows[j].lat) <= radius_m:
                 _union(parent, i, j)
     return [g for g in _components(parent, rows) if len(g) > 1]
+
+
+def count_colocation_clusters(
+    rows: list[PoiRow], radius_m: float = CLUSTER_RADIUS_M,
+) -> int:
+    """Count spatial clusters (within radius, >1 row) whose members share no significant
+    name tokens — i.e. legitimately co-located distinct features (gallery stacks).
+
+    A drop toward zero here is a signal the curator may have over-merged.
+    """
+    n = len(rows)
+    parent = _make_parent(n)
+    for i in range(n):
+        for j in range(i + 1, n):
+            if haversine_m(rows[i].lon, rows[i].lat, rows[j].lon, rows[j].lat) <= radius_m:
+                _union(parent, i, j)
+
+    count = 0
+    for group in _components(parent, rows):
+        if len(group) <= 1:
+            continue
+        shares_token = any(
+            group[a].tokens & group[b].tokens
+            for a in range(len(group))
+            for b in range(a + 1, len(group))
+        )
+        if not shares_token:
+            count += 1
+    return count

@@ -127,3 +127,22 @@ def test_residual_clusters_ignores_far_same_name():
         _row(3, "r2", "Santa Fe River Park West", -105.9360, 35.6850),
     ]
     assert poi_qc.find_residual_clusters(rows) == []
+
+
+def test_colocation_counts_distinct_name_stacks():
+    # Two distinct galleries within 35 m -> one co-location cluster
+    rows = [
+        _row(2, "g1", "Patina Gallery", -105.9300, 35.6850),
+        _row(3, "g2", "Sorrel Sky Gallery", -105.93001, 35.68501),
+    ]
+    assert poi_qc.count_colocation_clusters(rows) == 1
+
+
+def test_colocation_excludes_same_feature_clusters():
+    # Tudesque rows share a token -> that's a residual dup, NOT co-location
+    assert poi_qc.count_colocation_clusters(TUDESQUE_ROWS) == 0
+
+
+def test_colocation_excludes_lone_rows():
+    rows = [_row(2, "g1", "Patina Gallery", -105.9300, 35.6850)]
+    assert poi_qc.count_colocation_clusters(rows) == 0
