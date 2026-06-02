@@ -256,3 +256,44 @@ def cross_check_manifest(rows: list[PoiRow], manifest: dict) -> list[str]:
             f"manifest: summary.rows_after={rows_after} but CSV has {len(rows)} rows"
         )
     return failures
+
+
+@dataclass
+class QcResult:
+    passed: bool
+    failures: list[str]
+    info: dict
+
+
+def run_qc(csv_path: Path, manifest_path: Path | None = None) -> QcResult:
+    """Run all gate checks against a candidate CSV. Pure: returns a result, never exits."""
+    with Path(csv_path).open(newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        fieldnames = reader.fieldnames
+        raw_rows = list(reader)
+
+    failures: list[str] = list(check_schema(fieldnames))
+
+    rows, row_failures = parse_rows(raw_rows)
+    failures.extend(row_failures)
+
+    manifest: dict = {}
+    allowlist: list[set[str]] = []
+    manifest_present = manifest_path is not None and Path(manifest_path).exists()
+    if manifest_present:
+        manifest = load_manifest(Path(manifest_path))
+        allowlist = manifest_allowlist(manifest)
+        failures.extend(cross_check_manifest(rows, manifest))
+
+    residual = filter_allowlisted(find_residual_clusters(rows), allowlist)
+    for cluster in residual:
+        names = ", ".join(f"{r.name!r}({r.dedupe_key})" for r in cluster)
+        failures.append(f"residual same-feature cluster ({len(cluster)} rows): {names}")
+
+    info = {
+        "row_count": len(rows),
+        "colocation_clusters": count_colocation_clusters(rows),
+        "manifest_present": manifest_present,
+        "review_candidates": manifest.get("summary", {}).get("review_candidates"),
+    }
+    return QcResult(passed=not failures, failures=failures, info=info)

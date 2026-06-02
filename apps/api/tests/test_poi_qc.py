@@ -201,3 +201,91 @@ def test_cross_check_flags_rowcount_mismatch():
     manifest = {"summary": {"rows_after": 99}, "clusters": []}
     failures = poi_qc.cross_check_manifest(rows, manifest)
     assert any("rows_after" in f for f in failures)
+
+
+import csv as _csv
+import json as _json
+
+
+_CSV_HEADER = list(poi_qc.REQUIRED_COLUMNS)
+
+
+def _write_csv(path, rows):
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        writer = _csv.DictWriter(f, fieldnames=_CSV_HEADER, extrasaction="ignore")
+        writer.writeheader()
+        for r in rows:
+            full = {c: "" for c in _CSV_HEADER}
+            full.update(r)
+            writer.writerow(full)
+
+
+def _csv_row(poi_id, key, name, lon, lat, category="history"):
+    return {"poi_id": poi_id, "dedupe_key": key, "name": name,
+            "lon": str(lon), "lat": str(lat), "primary_category": category,
+            "display_priority": "50", "quality_score": "60",
+            "walk_affinity_hint": "0.5", "drive_affinity_hint": "0.5",
+            "description_confidence_v1": "medium"}
+
+
+def test_run_qc_fails_on_duplicate_cluster(tmp_path):
+    csv_path = tmp_path / "v.csv"
+    _write_csv(csv_path, [
+        _csv_row("p1", "osm:relation/13422888", "Tudesque House", -105.93883405, 35.68407725),
+        _csv_row("p2", "osm:way/461729209", "Roque Tudesque House East", -105.9387482642101, 35.684025653980406),
+        _csv_row("p3", "osm:way/461729208", "Roque Tudesque House West", -105.93903457267577, 35.6841571533804),
+        _csv_row("p4", "osm:node/6479254097", "Roque Tudesque House", -105.938944, 35.6841299),
+    ])
+    result = poi_qc.run_qc(csv_path)
+    assert result.passed is False
+    assert any("residual same-feature cluster" in f for f in result.failures)
+
+
+def test_run_qc_passes_on_clean_csv(tmp_path):
+    csv_path = tmp_path / "v.csv"
+    _write_csv(csv_path, [
+        _csv_row("p1", "osm:relation/13422888", "Tudesque House", -105.93883405, 35.68407725),
+        _csv_row("g1", "g1", "Patina Gallery", -105.9300, 35.6850, "art"),
+        _csv_row("g2", "g2", "Sorrel Sky Gallery", -105.93001, 35.68501, "art"),
+    ])
+    result = poi_qc.run_qc(csv_path)
+    assert result.passed is True
+    assert result.failures == []
+    assert result.info["colocation_clusters"] == 1
+
+
+def test_run_qc_fails_on_missing_column(tmp_path):
+    csv_path = tmp_path / "v.csv"
+    with open(csv_path, "w", newline="", encoding="utf-8") as f:
+        # header missing "lat"
+        cols = [c for c in _CSV_HEADER if c != "lat"]
+        writer = _csv.DictWriter(f, fieldnames=cols, extrasaction="ignore")
+        writer.writeheader()
+    result = poi_qc.run_qc(csv_path)
+    assert result.passed is False
+    assert any("missing required column: lat" in f for f in result.failures)
+
+
+def test_run_qc_cross_checks_manifest(tmp_path):
+    csv_path = tmp_path / "v.csv"
+    _write_csv(csv_path, [
+        _csv_row("p-rel", "osm:relation/13422888", "Tudesque House", -105.93883405, 35.68407725),
+    ])
+    manifest_path = tmp_path / "m.json"
+    manifest_path.write_text(_json.dumps({
+        "summary": {"rows_after": 1},
+        "clusters": [{"disposition": "collapsed", "survivor_poi_id": "p-rel",
+                      "dropped": [{"dedupe_key": "osm:way/461729209"}]}],
+    }), encoding="utf-8")
+    result = poi_qc.run_qc(csv_path, manifest_path)
+    assert result.passed is True
+    assert result.info["manifest_present"] is True
+
+
+def test_run_qc_warns_without_manifest(tmp_path):
+    csv_path = tmp_path / "v.csv"
+    _write_csv(csv_path, [
+        _csv_row("p1", "osm:relation/13422888", "Tudesque House", -105.93883405, 35.68407725),
+    ])
+    result = poi_qc.run_qc(csv_path)
+    assert result.info["manifest_present"] is False
