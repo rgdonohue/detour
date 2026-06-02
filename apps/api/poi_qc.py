@@ -65,3 +65,69 @@ def check_schema(fieldnames: list[str] | None) -> list[str]:
         f"missing required column: {col}"
         for col in REQUIRED_COLUMNS if col not in present
     ]
+
+
+@dataclass
+class PoiRow:
+    index: int          # 1-based data line number (header is line 1)
+    poi_id: str
+    dedupe_key: str     # dedupe_key, or poi_id when dedupe_key is blank
+    name: str
+    category: str
+    lon: float
+    lat: float
+    tokens: set[str] = field(default_factory=set)
+
+
+def parse_rows(raw_rows: list[dict[str, str]]) -> tuple[list[PoiRow], list[str]]:
+    """Validate and parse raw CSV rows. Returns (clean rows, failure messages).
+
+    A row with non-numeric or out-of-bbox coordinates is dropped from the clean
+    list (it cannot be clustered) but still recorded as a failure.
+    """
+    parsed: list[PoiRow] = []
+    failures: list[str] = []
+    seen_keys: dict[str, int] = {}
+
+    for i, raw in enumerate(raw_rows, start=2):
+        name = (raw.get("name") or "").strip()
+        category = (raw.get("primary_category") or "").strip()
+        dedupe_key = (raw.get("dedupe_key") or "").strip()
+        poi_id = (raw.get("poi_id") or "").strip()
+
+        if name.casefold() in UNUSABLE_NAMES:
+            failures.append(f"line {i}: unusable name {name!r}")
+        if category not in VALID_CATEGORIES:
+            failures.append(f"line {i}: invalid category {category!r}")
+
+        key = dedupe_key or poi_id
+        if not key:
+            failures.append(f"line {i}: missing dedupe_key and poi_id")
+        elif key in seen_keys:
+            failures.append(
+                f"line {i}: duplicate dedupe_key {key!r} (first seen line {seen_keys[key]})"
+            )
+        else:
+            seen_keys[key] = i
+
+        try:
+            lon = float(raw.get("lon", ""))
+            lat = float(raw.get("lat", ""))
+        except (TypeError, ValueError):
+            failures.append(
+                f"line {i}: lon/lat not numeric ({raw.get('lon')!r}, {raw.get('lat')!r})"
+            )
+            continue
+
+        if not (MIN_LON <= lon <= MAX_LON and MIN_LAT <= lat <= MAX_LAT):
+            failures.append(
+                f"line {i}: coords outside Santa Fe bbox or wrong order ({lon}, {lat})"
+            )
+            continue
+
+        parsed.append(PoiRow(
+            index=i, poi_id=poi_id, dedupe_key=key, name=name,
+            category=category, lon=lon, lat=lat, tokens=significant_tokens(name),
+        ))
+
+    return parsed, failures

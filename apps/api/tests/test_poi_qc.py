@@ -43,3 +43,48 @@ def test_check_schema_reports_missing():
 def test_check_schema_none_fieldnames():
     failures = poi_qc.check_schema(None)
     assert len(failures) == len(poi_qc.REQUIRED_COLUMNS)
+
+
+def _raw(**over):
+    base = {
+        "poi_id": "p1", "dedupe_key": "osm:node/1", "name": "Palace of the Governors",
+        "lon": "-105.9376", "lat": "35.6873", "primary_category": "history",
+    }
+    base.update(over)
+    return base
+
+
+def test_parse_rows_accepts_valid():
+    rows, failures = poi_qc.parse_rows([_raw()])
+    assert failures == []
+    assert len(rows) == 1
+    assert rows[0].dedupe_key == "osm:node/1"
+    assert rows[0].tokens == {"palace", "governors"}
+
+
+def test_parse_rows_flags_swapped_coords():
+    # lon/lat swapped -> outside bbox
+    rows, failures = poi_qc.parse_rows([_raw(lon="35.6873", lat="-105.9376")])
+    assert rows == []
+    assert any("bbox" in f for f in failures)
+
+
+def test_parse_rows_flags_non_numeric_coords():
+    rows, failures = poi_qc.parse_rows([_raw(lon="abc")])
+    assert rows == []
+    assert any("not numeric" in f for f in failures)
+
+
+def test_parse_rows_flags_invalid_category():
+    rows, failures = poi_qc.parse_rows([_raw(primary_category="food")])
+    assert any("invalid category" in f for f in failures)
+
+
+def test_parse_rows_flags_unusable_name():
+    rows, failures = poi_qc.parse_rows([_raw(name="?")])
+    assert any("unusable name" in f for f in failures)
+
+
+def test_parse_rows_flags_duplicate_dedupe_key():
+    rows, failures = poi_qc.parse_rows([_raw(), _raw(poi_id="p2", name="Other")])
+    assert any("duplicate dedupe_key" in f for f in failures)
