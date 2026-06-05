@@ -28,6 +28,9 @@ UNUSABLE_NAMES = frozenset({"", "?", "unknown", "unnamed", "n/a", "none", "null"
 GENERIC_TOKENS = frozenset({
     "house", "park", "building", "gallery", "studio",
     "north", "south", "east", "west", "the", "of", "and",
+    # Non-discriminating in a Santa Fe / New Mexico dataset, plus honorifics. These
+    # alone never identify a duplicate — real dups share a distinctive name token.
+    "santa", "fe", "new", "mexico", "saint", "st",
 })
 
 # Santa Fe sanity bounding box — a gross-error guard, not a municipal boundary.

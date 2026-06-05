@@ -135,6 +135,19 @@ def test_residual_clusters_ignores_far_same_name():
     assert poi_qc.find_residual_clusters(rows) == []
 
 
+def test_residual_clusters_ignores_generic_geographic_and_honorific_tokens():
+    # Distinct co-located features that share ONLY non-discriminating tokens must
+    # not cluster: "santa"/"fe" carry no signal in a Santa Fe dataset, and "saint"
+    # is a generic honorific. Each pair is ~2 m apart; the pairs are ~111 m apart.
+    rows = [
+        _row(2, "m1", "Santa Fe Farmers Market", -105.9300, 35.6850),
+        _row(3, "m2", "Santa Fe Rail Yard District", -105.93001, 35.68501),
+        _row(4, "s1", "Saint Francis of Assisi", -105.9310, 35.6860),
+        _row(5, "s2", "Saint Kateri Tekakwitha", -105.93101, 35.68601),
+    ]
+    assert poi_qc.find_residual_clusters(rows) == []
+
+
 def test_colocation_counts_distinct_name_stacks():
     # Two distinct galleries within 35 m -> one co-location cluster
     rows = [
