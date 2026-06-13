@@ -1,0 +1,353 @@
+{
+  "clusters": [
+    {
+      "alias_names": [
+        "Tudesque House",
+        "Roque Tudesque House East",
+        "Roque Tudesque House West"
+      ],
+      "chosen_display_name": "Roque Tudesque House",
+      "disposition": "collapsed",
+      "dropped": [
+        {
+          "dedupe_key": "osm:way/461729209",
+          "lat": 35.684025653980406,
+          "lon": -105.9387482642101,
+          "name": "Roque Tudesque House East",
+          "poi_id": "55532e60-6a27-4dd4-85c2-8d13c06b7714"
+        },
+        {
+          "dedupe_key": "osm:way/461729208",
+          "lat": 35.6841571533804,
+          "lon": -105.93903457267577,
+          "name": "Roque Tudesque House West",
+          "poi_id": "f4994c95-7b51-48af-9d06-1fb2cba71ff6"
+        },
+        {
+          "dedupe_key": "osm:node/6479254097",
+          "lat": 35.6841299,
+          "lon": -105.938944,
+          "name": "Roque Tudesque House",
+          "poi_id": "8794c23f-a0dc-4e50-98d8-21aa90e49e5a"
+        }
+      ],
+      "reason": "osm_relation_members",
+      "survivor_dedupe_key": "osm:relation/13422888",
+      "survivor_poi_id": "027d8e3a-2850-43db-9f64-1496fd5a83ef"
+    },
+    {
+      "alias_names": [
+        "Santuario de Nuestra Se\u00f1ora de Guadalupe",
+        "Nuestra Se\u00f1ora de Guadalupe Catholic Church"
+      ],
+      "chosen_display_name": "Our Lady of Guadalupe",
+      "disposition": "collapsed",
+      "dropped": [
+        {
+          "dedupe_key": "osm:way/725191463",
+          "lat": 35.687090160713254,
+          "lon": -105.9453038952757,
+          "name": "Nuestra Se\u00f1ora de Guadalupe Catholic Church",
+          "poi_id": "fc7a7178-cb0b-4a24-abf0-f338aae597df"
+        },
+        {
+          "dedupe_key": "osm:way/1212812771",
+          "lat": 35.686956621363684,
+          "lon": -105.94467334537099,
+          "name": "Our Lady of Guadalupe",
+          "poi_id": "88c10a65-10b4-4568-897f-6cd3887f8b13"
+        }
+      ],
+      "reason": "name+proximity",
+      "survivor_dedupe_key": "osm:way/473190151",
+      "survivor_poi_id": "57a6e1dd-5b17-4eea-9d70-241f0d365d73"
+    },
+    {
+      "alias_names": [
+        "Santa Fe Fire Department Museum"
+      ],
+      "chosen_display_name": "City of Santa Fe Firefighters Museum",
+      "disposition": "collapsed",
+      "dropped": [
+        {
+          "dedupe_key": "osm:node/6615398270",
+          "lat": 35.6660998,
+          "lon": -105.971491,
+          "name": "City of Santa Fe Firefighters Museum",
+          "poi_id": "2ae1d763-4f3b-4def-867c-cc374d207976"
+        }
+      ],
+      "reason": "name+proximity",
+      "survivor_dedupe_key": "osm:way/475539174",
+      "survivor_poi_id": "cdeb2f89-5c0a-4e39-b18c-5879390ca943"
+    },
+    {
+      "alias_names": [
+        "United Church"
+      ],
+      "chosen_display_name": "United Church of Santa Fe",
+      "disposition": "collapsed",
+      "dropped": [
+        {
+          "dedupe_key": "osm:way/946169067",
+          "lat": 35.654910421969554,
+          "lon": -105.94307968700683,
+          "name": "United Church of Santa Fe",
+          "poi_id": "e3c69524-e542-4371-9831-f338d5a73433"
+        }
+      ],
+      "reason": "name+proximity",
+      "survivor_dedupe_key": "osm:way/478163588",
+      "survivor_poi_id": "01d12f38-faa1-436c-b143-f7e378a9aabd"
+    },
+    {
+      "alias_names": [
+        "Vietnam War Memorial"
+      ],
+      "chosen_display_name": "Santa Fe Vietnam Veterans Memorial",
+      "disposition": "collapsed",
+      "dropped": [
+        {
+          "dedupe_key": "osm:node/8973437607",
+          "lat": 35.6835812,
+          "lon": -105.9703233,
+          "name": "Vietnam War Memorial",
+          "poi_id": "d74155bd-3a63-43e7-b557-a3184f959d69"
+        }
+      ],
+      "reason": "name+proximity",
+      "survivor_dedupe_key": "osm:way/686368793",
+      "survivor_poi_id": "ae505cc1-757a-4573-b5d4-06d710207ed1"
+    },
+    {
+      "alias_names": [
+        "The Cross of Martyrs",
+        "Cross of the Martyrs"
+      ],
+      "chosen_display_name": "Cross of the Martyrs Hill",
+      "disposition": "collapsed",
+      "dropped": [
+        {
+          "dedupe_key": "osm:node/6392062194",
+          "lat": 35.6895073,
+          "lon": -105.9329446,
+          "name": "Cross of the Martyrs",
+          "poi_id": "415bb242-92ea-4e75-9dfd-772e370c4d83"
+        },
+        {
+          "dedupe_key": "osm:node/6392062211",
+          "lat": 35.689543,
+          "lon": -105.932961,
+          "name": "Cross of the Martyrs Hill",
+          "poi_id": "e2576ecd-79a4-4e67-aff7-722a0cff65fa"
+        }
+      ],
+      "reason": "name+proximity",
+      "survivor_dedupe_key": "osm:way/682544392",
+      "survivor_poi_id": "0c519b46-6956-4746-acf3-4c0519ec7991"
+    },
+    {
+      "alias_names": [],
+      "chosen_display_name": "Dish",
+      "disposition": "collapsed",
+      "dropped": [
+        {
+          "dedupe_key": "osm:node/6626953353",
+          "lat": 35.637666,
+          "lon": -106.0206531,
+          "name": "Dish",
+          "poi_id": "6586fd78-61ec-4fe1-a7ec-9dd378081900"
+        }
+      ],
+      "reason": "name+proximity",
+      "survivor_dedupe_key": "osm:node/6626953354",
+      "survivor_poi_id": "3cbd8813-92a4-49eb-9348-d3592b6b57c7"
+    },
+    {
+      "alias_names": [],
+      "chosen_display_name": "Dish",
+      "disposition": "collapsed",
+      "dropped": [
+        {
+          "dedupe_key": "osm:node/7531555578",
+          "lat": 35.6720113,
+          "lon": -105.9558258,
+          "name": "Dish",
+          "poi_id": "fc6521bd-c9c0-4072-a888-7f5cec6252ce"
+        }
+      ],
+      "reason": "name+proximity",
+      "survivor_dedupe_key": "osm:node/7531555535",
+      "survivor_poi_id": "f185751a-6838-4e57-b829-cc52f14e831d"
+    },
+    {
+      "alias_names": [],
+      "chosen_display_name": "Dish",
+      "disposition": "collapsed",
+      "dropped": [
+        {
+          "dedupe_key": "osm:node/6696363459",
+          "lat": 35.6351268,
+          "lon": -106.022793,
+          "name": "Dish",
+          "poi_id": "c4725dcd-2f74-4668-83dc-b7658cb378be"
+        }
+      ],
+      "reason": "name+proximity",
+      "survivor_dedupe_key": "osm:node/9140510013",
+      "survivor_poi_id": "0f5abbf9-915d-4e5f-8f91-6ceca78df4d7"
+    },
+    {
+      "alias_names": [],
+      "chosen_display_name": "Atalaya Mountain",
+      "disposition": "collapsed",
+      "dropped": [
+        {
+          "dedupe_key": "osm:node/6946550897",
+          "lat": 35.6678285,
+          "lon": -105.8759584,
+          "name": "Atalaya Mountain",
+          "poi_id": "56029346-f106-42be-afc5-99fd4bd4fd84"
+        }
+      ],
+      "reason": "name+proximity",
+      "survivor_dedupe_key": "osm:node/357610899",
+      "survivor_poi_id": "551fcf40-bada-456d-8817-dc7733ae5ace"
+    },
+    {
+      "disposition": "left_colocated",
+      "members": [
+        "osm:node/8807405137",
+        "osm:node/9566470051",
+        "osm:way/243866549"
+      ]
+    },
+    {
+      "disposition": "left_colocated",
+      "members": [
+        "osm:node/11152035654",
+        "osm:node/11163023914",
+        "osm:way/104470409",
+        "osm:way/310833338"
+      ]
+    },
+    {
+      "disposition": "left_colocated",
+      "members": [
+        "osm:node/10738069465",
+        "osm:node/11228566538"
+      ]
+    },
+    {
+      "disposition": "left_colocated",
+      "members": [
+        "osm:node/11270781128",
+        "osm:node/11270781129"
+      ]
+    },
+    {
+      "disposition": "left_colocated",
+      "members": [
+        "osm:way/682544399",
+        "osm:way/729362235"
+      ]
+    },
+    {
+      "disposition": "left_colocated",
+      "members": [
+        "osm:node/4576173951",
+        "osm:node/4576173952",
+        "osm:node/4576173966"
+      ]
+    },
+    {
+      "disposition": "left_colocated",
+      "members": [
+        "osm:node/4578334593",
+        "osm:node/4578334596"
+      ]
+    },
+    {
+      "disposition": "left_colocated",
+      "members": [
+        "osm:node/11270781097",
+        "osm:node/11270781098"
+      ]
+    },
+    {
+      "disposition": "left_colocated",
+      "members": [
+        "osm:node/4578345318",
+        "osm:node/4578345319"
+      ]
+    },
+    {
+      "disposition": "left_colocated",
+      "members": [
+        "osm:node/10740282276",
+        "osm:node/10740282277"
+      ]
+    },
+    {
+      "disposition": "left_colocated",
+      "members": [
+        "osm:node/11270781093",
+        "osm:node/11273364607"
+      ]
+    },
+    {
+      "disposition": "left_colocated",
+      "members": [
+        "osm:node/6761284111",
+        "osm:way/720447277"
+      ]
+    },
+    {
+      "disposition": "left_colocated",
+      "members": [
+        "osm:node/6698267696",
+        "osm:node/6698267716"
+      ]
+    }
+  ],
+  "data_quality_flags": [
+    {
+      "dedupe_key": "osm:way/santa-fe-plaza",
+      "issue": "hand-authored non-OSM dedupe_key; record_origin=fixture_overlay; overlaps real 'The Santa Fe Plaza' (osm:way/141165187) ~81 m away"
+    },
+    {
+      "dedupe_key": "osm:node/cross-martyrs",
+      "issue": "hand-authored non-OSM dedupe_key; record_origin=fixture_overlay; 'Cross of the Martyrs Overlook' ~290 m from the downtown Cross cluster"
+    },
+    {
+      "dedupe_key": "osm:way/canyon-road",
+      "issue": "hand-authored non-OSM dedupe_key; record_origin=fixture_overlay showcase point"
+    },
+    {
+      "dedupe_key": "osm:way/rail-yard",
+      "issue": "hand-authored non-OSM dedupe_key; record_origin=fixture_overlay showcase point"
+    },
+    {
+      "dedupe_key": "osm:node/7777929438",
+      "issue": "4th distinct 'Dish' location ~6 km from the others; category_fallback; likely stray/mis-tagged data, but isolated (not a redundant pin)"
+    }
+  ],
+  "excluded_rows": [
+    {
+      "dedupe_key": "osm:relation/18934145",
+      "lat": 35.7820047,
+      "lon": -106.09929009999999,
+      "name": "El Camino Real de Tierra Adentro National Historic Trail - Ohkay Owingeh Branch - Santa Fe County",
+      "poi_id": "4e6dcfd7-a301-4c15-a3dc-4281a54ca072",
+      "reason": "out_of_bbox: lat 35.78200 is north of bbox max 35.78; linear National Historic Trail, not a stop-shaped pin; dropped"
+    }
+  ],
+  "schema_version": 1,
+  "summary": {
+    "clusters_collapsed": 10,
+    "clusters_left_colocated": 13,
+    "review_candidates": 0,
+    "rows_after": 501,
+    "rows_before": 516
+  }
+}

@@ -16,7 +16,7 @@ _VALID_CATEGORIES: frozenset = frozenset({"history", "art", "scenic", "culture",
 # Single merged CSV produced by the sister POI curator project. Replaces the
 # previous two-file split (seed + context) — `address` is now a real column,
 # so we no longer parse OSM tags out of a raw_tags_json blob.
-_CSV_PATH = Path(__file__).parent / "data" / "query_capable_pois_merged_v1.csv"
+_CSV_PATH = Path(__file__).parent / "data" / "query_capable_pois_merged_v2.csv"
 
 
 def _load_places() -> list[dict]:
