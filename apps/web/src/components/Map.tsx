@@ -13,6 +13,10 @@ import {
   type TravelMode,
 } from "../lib/api";
 import { buildTourFromState } from "../lib/buildTour";
+import {
+  createDebouncedScheduler,
+  type DebouncedScheduler,
+} from "../lib/debouncedScheduler";
 import { optimizeStopOrder } from "../lib/optimizeStops";
 import { useServiceArea } from "../hooks/useServiceArea";
 import { useRouteCheck, type RouteCheckResult } from "../hooks/useRouteCheck";
@@ -31,6 +35,9 @@ import {
 } from "../lib/urlState";
 
 const CLICK_DEBOUNCE_MS = 300;
+// Rapid stop toggles collapse into one /api/route call; selection state
+// still updates immediately (docs/LAUNCH_READINESS.md, stop-selection debounce)
+const STOP_SELECT_DEBOUNCE_MS = 400;
 const TONER_LITE_URL =
   "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png";
 
@@ -134,6 +141,10 @@ export function Map({ resetRef, modeChangeRef, geolocateRef, mode, onModeChange 
   const isCheckingRef = useRef(false);
   const detourRequestRef = useRef<number>(0);
   const detourAbortControllerRef = useRef<AbortController | null>(null);
+  const detourDebouncerRef = useRef<DebouncedScheduler | null>(null);
+  if (detourDebouncerRef.current === null) {
+    detourDebouncerRef.current = createDebouncedScheduler(STOP_SELECT_DEBOUNCE_MS);
+  }
   const stopSuggestControllerRef = useRef<AbortController | null>(null);
   const onStopClickRef = useRef<(stop: StopSuggestion) => void>(() => {});
   const sheetControlRef = useRef<{ setSnap: (snap: SnapName) => void } | null>(null);
@@ -201,6 +212,11 @@ export function Map({ resetRef, modeChangeRef, geolocateRef, mode, onModeChange 
   destinationRef.current = destination;
   modeRef.current = mode;
   checkRouteRef.current = checkRoute;
+
+  useEffect(() => {
+    const debouncer = detourDebouncerRef.current;
+    return () => debouncer?.cancel();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -534,6 +550,9 @@ export function Map({ resetRef, modeChangeRef, geolocateRef, mode, onModeChange 
       destinationCoord: [number, number],
       currentMode: TravelMode,
     ): Promise<StopSuggestion[]> => {
+      // New base route discards any pending or in-flight detour recomputation
+      detourDebouncerRef.current?.cancel();
+      detourRequestRef.current += 1;
       setDestination(destinationCoord);
       setShowingDetour(false);
       setSelectedStops([]);
@@ -611,6 +630,7 @@ export function Map({ resetRef, modeChangeRef, geolocateRef, mode, onModeChange 
   }, [clearStopMarkers, removeAltRoute]);
 
   const handleReset = useCallback(() => {
+    detourDebouncerRef.current?.cancel();
     detourRequestRef.current += 1;
     detourAbortControllerRef.current?.abort();
     stopSuggestControllerRef.current?.abort();
@@ -1040,7 +1060,7 @@ export function Map({ resetRef, modeChangeRef, geolocateRef, mode, onModeChange 
   ]);
 
   const handleSelectStop = useCallback(
-    async (stop: StopSuggestion) => {
+    (stop: StopSuggestion) => {
       if (!origin || !destination || !result) return;
 
       const isSelected = selectedStops.some((s) => s.name === stop.name);
@@ -1051,7 +1071,15 @@ export function Map({ resetRef, modeChangeRef, geolocateRef, mode, onModeChange 
 
       setSelectedStops(newSelected);
 
+      // Every toggle invalidates the previous request generation and aborts
+      // any in-flight fetch, so a response for a stale selection can never
+      // apply while a newer toggle is pending in the debounce window.
+      detourRequestRef.current += 1;
+      const reqId = detourRequestRef.current;
+      detourAbortControllerRef.current?.abort();
+
       if (newSelected.length === 0) {
+        detourDebouncerRef.current?.cancel();
         setShowingDetour(false);
         setDetourResult(null);
         setDetourLoading(false);
@@ -1060,35 +1088,40 @@ export function Map({ resetRef, modeChangeRef, geolocateRef, mode, onModeChange 
         return;
       }
 
-      detourRequestRef.current += 1;
-      const reqId = detourRequestRef.current;
-      detourAbortControllerRef.current?.abort();
-      detourAbortControllerRef.current = new AbortController();
-      const detourSignal = detourAbortControllerRef.current.signal;
       setShowingDetour(false);
       setDetourLoading(true);
       setDetourResult(null);
       removeAltRoute();
       renderRouteLine(result.route, result.within_limit ? ROUTE_COLOR : ROUTE_OUTSIDE_COLOR, "route", "route-line", 0.9, 4);
 
-      try {
-        const data = await getRoute(
-          destination[0], destination[1], effectiveMilesFor(mode),
-          origin[0], origin[1],
-          newSelected.map((s) => s.coordinates),
-          mode,
-          detourSignal,
-        );
-        if (detourRequestRef.current !== reqId) return;
-        const detour = toRouteCheckResult(data);
-        setDetourResult(detour);
-        applyDetourToMap(detour, result);
-      } catch (err) {
-        if (err instanceof Error && err.name === "AbortError") return;
-        // Keep selection visible; loading clears below
-      } finally {
-        if (detourRequestRef.current === reqId) setDetourLoading(false);
-      }
+      detourDebouncerRef.current?.schedule(() => {
+        void (async () => {
+          // A reset/mode-change/new-origin path may have bumped the
+          // generation without cancelling this timer — treat it as stale.
+          if (detourRequestRef.current !== reqId) return;
+          detourAbortControllerRef.current = new AbortController();
+          const detourSignal = detourAbortControllerRef.current.signal;
+
+          try {
+            const data = await getRoute(
+              destination[0], destination[1], effectiveMilesFor(mode),
+              origin[0], origin[1],
+              newSelected.map((s) => s.coordinates),
+              mode,
+              detourSignal,
+            );
+            if (detourRequestRef.current !== reqId) return;
+            const detour = toRouteCheckResult(data);
+            setDetourResult(detour);
+            applyDetourToMap(detour, result);
+          } catch (err) {
+            if (err instanceof Error && err.name === "AbortError") return;
+            // Keep selection visible; loading clears below
+          } finally {
+            if (detourRequestRef.current === reqId) setDetourLoading(false);
+          }
+        })();
+      });
     },
     [applyDetourToMap, destination, mode, origin, removeAltRoute, renderRouteLine, result, selectedStops],
   );
@@ -1167,7 +1200,11 @@ export function Map({ resetRef, modeChangeRef, geolocateRef, mode, onModeChange 
 
   const handleBackToShortest = useCallback(() => {
     if (!result) return;
+    detourDebouncerRef.current?.cancel();
+    detourRequestRef.current += 1;
+    detourAbortControllerRef.current?.abort();
     setShowingDetour(false);
+    setDetourLoading(false);
     setSelectedStops([]);
     renderRouteLine(
       result.route,
