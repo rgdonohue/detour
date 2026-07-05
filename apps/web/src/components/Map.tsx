@@ -18,6 +18,11 @@ import {
   type DebouncedScheduler,
 } from "../lib/debouncedScheduler";
 import { optimizeStopOrder } from "../lib/optimizeStops";
+import {
+  isStopMarkerVisible,
+  mergePersistedStops,
+  rankDefaultVisibleStops,
+} from "../lib/stopMarkerPolicy";
 import { useServiceArea } from "../hooks/useServiceArea";
 import { useRouteCheck, type RouteCheckResult } from "../hooks/useRouteCheck";
 import { useGeolocate } from "../hooks/useGeolocate";
@@ -71,19 +76,6 @@ interface MapProps {
   geolocateRef?: { current: () => void };
   mode: TravelMode;
   onModeChange: (mode: TravelMode) => void;
-}
-
-/** Minimum distance in miles from a point to the nearest route vertex. */
-function minRouteDistanceMiles(coord: [number, number], routeCoords: number[][]): number {
-  let bestDist = Infinity;
-  for (let i = 0; i < routeCoords.length; i++) {
-    const dLon = (coord[0] - routeCoords[i][0]) * Math.cos(((coord[1] + routeCoords[i][1]) / 2) * Math.PI / 180);
-    const dLat = coord[1] - routeCoords[i][1];
-    const d = Math.sqrt(dLon * dLon + dLat * dLat);
-    if (d < bestDist) bestDist = d;
-  }
-  // Convert degrees to miles (1 degree latitude ≈ 69.0 miles)
-  return bestDist * 69.0;
 }
 
 function toRouteCheckResult(
@@ -171,12 +163,14 @@ export function Map({ resetRef, modeChangeRef, geolocateRef, mode, onModeChange 
   const [restoreReady, setRestoreReady] = useState(false);
   const [showRings, setShowRings] = useState(false);
   const [mapReady, setMapReady] = useState(false);
-  const [showAllStops, setShowAllStops] = useState(false);
+  // Route-filtered candidates start fully visible; toggling "All pins" off
+  // reduces to the top-ranked subset.
+  const [showAllStops, setShowAllStops] = useState(true);
   const [savingTour, setSavingTour] = useState(false);
   const [saveTourError, setSaveTourError] = useState<string | null>(null);
   const showRingsRef = useRef(false);
   showRingsRef.current = showRings;
-  const showAllStopsRef = useRef(false);
+  const showAllStopsRef = useRef(true);
   showAllStopsRef.current = showAllStops;
   const clickPhaseRef = useRef(clickPhase);
   clickPhaseRef.current = clickPhase;
@@ -197,6 +191,7 @@ export function Map({ resetRef, modeChangeRef, geolocateRef, mode, onModeChange 
   // markers on every render.
   const originRef = useRef<[number, number] | null>(null);
   const destinationRef = useRef<[number, number] | null>(null);
+  const selectedStopsRef = useRef<StopSuggestion[]>([]);
   const modeRef = useRef<TravelMode>(mode);
   const checkRouteRef = useRef<typeof checkRoute | null>(null);
   const applyRouteRef = useRef<
@@ -205,11 +200,13 @@ export function Map({ resetRef, modeChangeRef, geolocateRef, mode, onModeChange 
         originCoord: [number, number],
         destinationCoord: [number, number],
         currentMode: TravelMode,
+        preservedStops?: StopSuggestion[],
       ) => Promise<StopSuggestion[]>)
     | null
   >(null);
   originRef.current = origin;
   destinationRef.current = destination;
+  selectedStopsRef.current = selectedStops;
   modeRef.current = mode;
   checkRouteRef.current = checkRoute;
 
@@ -330,7 +327,9 @@ export function Map({ resetRef, modeChangeRef, geolocateRef, mode, onModeChange 
         lng, lat,
         modeRef.current,
       )
-        .then((data) => apply(data, newOrigin, dest, modeRef.current))
+        .then((data) =>
+          apply(data, newOrigin, dest, modeRef.current, selectedStopsRef.current),
+        )
         .catch((err) => {
           if (err instanceof Error && err.name === "AbortError") return;
           if (prevOrigin) {
@@ -383,7 +382,9 @@ export function Map({ resetRef, modeChangeRef, geolocateRef, mode, onModeChange 
           orig[0], orig[1],
           modeRef.current,
         )
-          .then((data) => apply(data, orig, [lng, lat], modeRef.current))
+          .then((data) =>
+            apply(data, orig, [lng, lat], modeRef.current, selectedStopsRef.current),
+          )
           .catch((err) => {
             if (err instanceof Error && err.name === "AbortError") return;
             if (prevDest) marker.setLngLat(prevDest);
@@ -434,17 +435,7 @@ export function Map({ resetRef, modeChangeRef, geolocateRef, mode, onModeChange 
 
       // Rank stops by distance to route; top N are default-visible
       const routeCoords = resultRef.current?.route?.geometry?.coordinates;
-      const DEFAULT_VISIBLE = 10;
-      const defaultVisibleNames = new Set(
-        stops
-          .map((stop) => ({
-            stop,
-            dist: routeCoords ? minRouteDistanceMiles(stop.coordinates, routeCoords) : 0,
-          }))
-          .sort((a, b) => a.dist - b.dist)
-          .slice(0, DEFAULT_VISIBLE)
-          .map((r) => r.stop.name)
-      );
+      const defaultVisibleNames = rankDefaultVisibleStops(stops, routeCoords);
 
       stops.forEach((stop) => {
         const el = document.createElement("div");
@@ -511,9 +502,7 @@ export function Map({ resetRef, modeChangeRef, geolocateRef, mode, onModeChange 
         const stops = res.stops ?? [];
         setNearbyStops(stops);
         // Merge persisted selections not in current results so their markers stay on the map
-        const names = new Set(stops.map((s) => s.name));
-        const extra = persistedStops.filter((s) => !names.has(s.name));
-        updateStopMarkers([...stops, ...extra]);
+        updateStopMarkers(mergePersistedStops(stops, persistedStops));
         return stops;
       } catch (err) {
         if (err instanceof Error && err.name === "AbortError") return [];
@@ -543,54 +532,6 @@ export function Map({ resetRef, modeChangeRef, geolocateRef, mode, onModeChange 
     );
   }, []);
 
-  const applyShortestRouteToMap = useCallback(
-    async (
-      routeData: RouteResponse,
-      originCoord: [number, number],
-      destinationCoord: [number, number],
-      currentMode: TravelMode,
-    ): Promise<StopSuggestion[]> => {
-      // New base route discards any pending or in-flight detour recomputation
-      detourDebouncerRef.current?.cancel();
-      detourRequestRef.current += 1;
-      setDestination(destinationCoord);
-      setShowingDetour(false);
-      setSelectedStops([]);
-      setDetourResult(null);
-      setDetourLoading(false);
-      removeAltRoute();
-
-      placeDestinationMarker(destinationCoord, routeData.within_limit);
-      renderRouteLine(
-        routeData.route,
-        routeData.within_limit ? ROUTE_COLOR : ROUTE_OUTSIDE_COLOR,
-        "route",
-        "route-line",
-        0.9,
-        4,
-      );
-      fitRouteBounds(routeData.route.geometry.coordinates);
-
-      setClickPhase("route-shown");
-      return fetchAndSetStops(
-        originCoord,
-        destinationCoord,
-        null,
-        effectiveMilesFor(currentMode),
-        currentMode,
-        routeData.route.geometry.coordinates,
-      );
-    },
-    [
-      fetchAndSetStops,
-      fitRouteBounds,
-      placeDestinationMarker,
-      removeAltRoute,
-      renderRouteLine,
-    ],
-  );
-  applyRouteRef.current = applyShortestRouteToMap;
-
   const applyDetourToMap = useCallback(
     (detour: RouteCheckResult, shortest: RouteCheckResult) => {
       renderRouteLine(
@@ -614,6 +555,114 @@ export function Map({ resetRef, modeChangeRef, geolocateRef, mode, onModeChange 
     },
     [renderRouteLine],
   );
+
+  // Re-optimize a preserved selection for the given endpoints and recompute
+  // the multi-stop detour. On failure the selection stays intact and the
+  // already-rendered direct route remains — the user can retry by toggling
+  // a stop. Shared by mode changes and origin/destination drags.
+  const recomputeDetourForSelection = useCallback(
+    async (
+      originCoord: [number, number],
+      destinationCoord: [number, number],
+      currentMode: TravelMode,
+      directData: RouteResponse,
+      stopsToRestore: StopSuggestion[],
+    ): Promise<void> => {
+      const sorted = optimizeStopOrder(originCoord, destinationCoord, stopsToRestore);
+      // Fresh array so the selection-styling effect re-runs over rebuilt markers
+      setSelectedStops([...sorted]);
+
+      detourRequestRef.current += 1;
+      const reqId = detourRequestRef.current;
+      detourAbortControllerRef.current?.abort();
+      detourAbortControllerRef.current = new AbortController();
+      const detourSignal = detourAbortControllerRef.current.signal;
+      setDetourLoading(true);
+
+      try {
+        const viaData = await getRoute(
+          destinationCoord[0], destinationCoord[1], effectiveMilesFor(currentMode),
+          originCoord[0], originCoord[1],
+          sorted.map((s) => s.coordinates),
+          currentMode,
+          detourSignal,
+        );
+        if (detourRequestRef.current !== reqId) return;
+        const detour = toRouteCheckResult(viaData);
+        setDetourResult(detour);
+        applyDetourToMap(detour, toRouteCheckResult(directData));
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") return;
+        // Keep the selection and the direct route visible
+      } finally {
+        if (detourRequestRef.current === reqId) setDetourLoading(false);
+      }
+    },
+    [applyDetourToMap],
+  );
+
+  const applyShortestRouteToMap = useCallback(
+    async (
+      routeData: RouteResponse,
+      originCoord: [number, number],
+      destinationCoord: [number, number],
+      currentMode: TravelMode,
+      preservedStops: StopSuggestion[] = [],
+    ): Promise<StopSuggestion[]> => {
+      // New base route discards any pending or in-flight detour recomputation
+      detourDebouncerRef.current?.cancel();
+      detourRequestRef.current += 1;
+      setDestination(destinationCoord);
+      setShowingDetour(false);
+      // Endpoint updates (marker drags) keep the current itinerary; only a
+      // route built from scratch starts with an empty selection.
+      if (preservedStops.length === 0) setSelectedStops([]);
+      setDetourResult(null);
+      setDetourLoading(false);
+      removeAltRoute();
+
+      placeDestinationMarker(destinationCoord, routeData.within_limit);
+      renderRouteLine(
+        routeData.route,
+        routeData.within_limit ? ROUTE_COLOR : ROUTE_OUTSIDE_COLOR,
+        "route",
+        "route-line",
+        0.9,
+        4,
+      );
+      fitRouteBounds(routeData.route.geometry.coordinates);
+
+      setClickPhase("route-shown");
+      const stops = await fetchAndSetStops(
+        originCoord,
+        destinationCoord,
+        null,
+        effectiveMilesFor(currentMode),
+        currentMode,
+        routeData.route.geometry.coordinates,
+        preservedStops,
+      );
+      if (preservedStops.length > 0) {
+        await recomputeDetourForSelection(
+          originCoord,
+          destinationCoord,
+          currentMode,
+          routeData,
+          preservedStops,
+        );
+      }
+      return stops;
+    },
+    [
+      fetchAndSetStops,
+      fitRouteBounds,
+      placeDestinationMarker,
+      recomputeDetourForSelection,
+      removeAltRoute,
+      renderRouteLine,
+    ],
+  );
+  applyRouteRef.current = applyShortestRouteToMap;
 
   const removeRouteAndDestination = useCallback(() => {
     if (destMarkerRef.current) {
@@ -650,7 +699,7 @@ export function Map({ resetRef, modeChangeRef, geolocateRef, mode, onModeChange 
     setShowingDetour(false);
     setDetourLoading(false);
     setShowRings(false);
-    setShowAllStops(false);
+    setShowAllStops(true);
     clearResult();
     setClickPhase("set-origin");
     const map = mapRef.current;
@@ -1157,12 +1206,13 @@ export function Map({ resetRef, modeChangeRef, geolocateRef, mode, onModeChange 
     const map = mapRef.current;
     if (!map) return;
     stopMarkersRef.current.forEach(({ stop, el, marker }) => {
-      const inCategory = activeCategories.has(stop.category as PlaceCategory);
-      const inDefaultSet = el.dataset.defaultVisible === "true";
-      const shouldShow = inCategory && (inDefaultSet || showAllStops);
+      const shouldShow = isStopMarkerVisible({
+        isSelected: el.classList.contains("stop-marker--selected"),
+        inCategory: activeCategories.has(stop.category as PlaceCategory),
+        isDefaultVisible: el.dataset.defaultVisible === "true",
+        showAllStops,
+      });
       const isOnMap = el.parentNode !== null;
-      const isSelected = el.classList.contains("stop-marker--selected");
-      if (isSelected) return;
       if (shouldShow && !isOnMap) {
         el.style.opacity = "0";
         marker.addTo(map);
@@ -1277,34 +1327,7 @@ export function Map({ resetRef, modeChangeRef, geolocateRef, mode, onModeChange 
           }
 
           // Recompute multi-stop route for the new mode; stop order is mode-independent.
-          const sorted = optimizeStopOrder(origin, destination, stopsToRestore);
-          setSelectedStops(sorted);
-          detourRequestRef.current += 1;
-          const reqId = detourRequestRef.current;
-          detourAbortControllerRef.current?.abort();
-          detourAbortControllerRef.current = new AbortController();
-          const detourSignal = detourAbortControllerRef.current.signal;
-          setDetourLoading(true);
-
-          try {
-            const viaData = await getRoute(
-              destination[0], destination[1], effectiveMilesFor(newMode),
-              origin[0], origin[1],
-              sorted.map((s) => s.coordinates),
-              newMode,
-              detourSignal,
-            );
-            if (detourRequestRef.current !== reqId) return;
-            const directResult = toRouteCheckResult(data);
-            const detour = toRouteCheckResult(viaData);
-            setDetourResult(detour);
-            applyDetourToMap(detour, directResult);
-          } catch (err) {
-            if (err instanceof Error && err.name === "AbortError") return;
-            if (detourRequestRef.current === reqId) setSelectedStops([]);
-          } finally {
-            if (detourRequestRef.current === reqId) setDetourLoading(false);
-          }
+          await recomputeDetourForSelection(origin, destination, newMode, data, stopsToRestore);
         })
         .catch(() => {})
         .finally(() => {
@@ -1323,7 +1346,7 @@ export function Map({ resetRef, modeChangeRef, geolocateRef, mode, onModeChange 
       renderRouteLine,
       fitRouteBounds,
       fetchAndSetStops,
-      applyDetourToMap,
+      recomputeDetourForSelection,
     ],
   );
 
