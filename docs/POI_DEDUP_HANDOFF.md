@@ -147,3 +147,21 @@ clean v2, we verify before anything reaches that directory:
 5. Optional safety net: a light spatial+name dedup in
    `apps/api/stop_selector.py:_load_places()` so production self-heals if a bad
    CSV ever slips the gate. This is a backstop, not the primary control.
+
+## Description review-status transparency (display-only)
+
+Detour consumes `description_review_status` from the CSV when present and
+exposes it as `review_status` in `/api/pois` and `/api/suggest-stop`. The
+frontend shows a muted "Draft description, not yet reviewed" note under any
+generated description whose status is not `reviewed`/`approved` — in the
+Explore detail panel, the Build stop card, and the tour story viewer. Saved
+user tours persist `review_status` per stop, so shared tours carry the same
+draft note; hand-authored gallery tours have no such field and are never
+labeled.
+
+This is transparency metadata, not a promotion control: the QC gate does
+**not** require the column (an older CSV without it loads fine and simply
+shows the note, since absence is treated as unreviewed). Editorial review
+itself stays in the curator project; `description_status`,
+`description_method`, `claim_basis`, and `risk_flags` are deliberately not
+consumed or displayed.
