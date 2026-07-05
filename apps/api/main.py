@@ -21,7 +21,7 @@ from config import settings
 from conversion import miles_to_meters
 from coords import quantize
 from inflight import dedupe_inflight
-from ors_client import aclose_client, get_isodistance, get_shortest_route
+from ors_client import OrsUpstreamError, aclose_client, get_isodistance, get_shortest_route
 from poi_client import get_pois_along_route
 from rate_limit import RateLimiter
 from saved_tours import save_tour
@@ -114,6 +114,31 @@ async def _rate_limit_handler(_request: Request, exc: RateLimitExceeded) -> JSON
             "retry_after_seconds": exc.retry_after,
         },
         headers={"Retry-After": str(exc.retry_after)},
+    )
+
+
+@app.exception_handler(OrsUpstreamError)
+async def _ors_upstream_handler(_request: Request, exc: OrsUpstreamError) -> JSONResponse:
+    """ORS itself failed — distinct from RateLimitExceeded (our own limits).
+    `error_type` lets the frontend tell the two apart; 503 (not 502) for the
+    unavailable case signals a temporary condition worth retrying. Upstream
+    response bodies never pass through here — only our fixed copy."""
+    if exc.kind == "rate_limited":
+        content: dict = {
+            "detail": "The routing service is busy. Try again shortly.",
+            "error_type": "ors_rate_limited",
+        }
+        headers: dict[str, str] = {}
+        if exc.retry_after_seconds is not None:
+            content["retry_after_seconds"] = exc.retry_after_seconds
+            headers["Retry-After"] = str(exc.retry_after_seconds)
+        return JSONResponse(status_code=429, content=content, headers=headers)
+    return JSONResponse(
+        status_code=503,
+        content={
+            "detail": "The routing service is temporarily unavailable. Try again in a moment.",
+            "error_type": "ors_upstream",
+        },
     )
 
 
@@ -298,6 +323,8 @@ async def get_area(
         result = await dedupe_inflight(_area_inflight, cache_key, factory)
     except RateLimitExceeded:
         raise
+    except OrsUpstreamError:
+        raise
     except ValueError as e:
         msg = str(e)
         if "rate limited" in msg.lower():
@@ -377,6 +404,8 @@ async def get_route(
         )
     except RateLimitExceeded:
         raise
+    except OrsUpstreamError:
+        raise
     except ValueError as e:
         msg = str(e)
         if "rate limited" in msg.lower():
@@ -429,6 +458,8 @@ async def suggest_stop(
             limit_miles=limit_miles,
         )
     except RateLimitExceeded:
+        raise
+    except OrsUpstreamError:
         raise
     except ValueError as e:
         msg = str(e)
@@ -531,6 +562,8 @@ async def suggest_stop_post(request: Request, body: SuggestStopBody):
                 limit_miles=limit_miles,
             )
         except RateLimitExceeded:
+            raise
+        except OrsUpstreamError:
             raise
         except ValueError as e:
             msg = str(e)

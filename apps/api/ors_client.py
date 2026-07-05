@@ -22,6 +22,55 @@ if not logger.handlers:
 
 ORS_BASE = "https://api.openrouteservice.org"
 
+
+class OrsUpstreamError(Exception):
+    """Typed upstream ORS failure.
+
+    kind="rate_limited": ORS returned 429. retry_after_seconds carries the
+    upstream Retry-After when ORS sent a parseable one, else None.
+    kind="unavailable": ORS returned a transient 5xx.
+
+    The message is a fixed generic string — never the upstream response body,
+    which may echo request details we don't want in logs or client responses.
+    """
+
+    def __init__(
+        self,
+        kind: str,
+        status_code: int,
+        retry_after_seconds: int | None = None,
+    ) -> None:
+        self.kind = kind
+        self.status_code = status_code
+        self.retry_after_seconds = retry_after_seconds
+        super().__init__(f"ORS upstream {kind} (HTTP {status_code})")
+
+
+def _parse_retry_after(resp: httpx.Response) -> int | None:
+    """Parse Retry-After delta-seconds. ORS sends the integer form, not
+    HTTP-dates; anything unparseable is treated as absent."""
+    raw = resp.headers.get("Retry-After")
+    if raw is None:
+        return None
+    try:
+        seconds = int(float(raw.strip()))
+    except ValueError:
+        return None
+    return max(seconds, 1)
+
+
+def _raise_for_upstream(resp: httpx.Response) -> None:
+    """Shared ORS error classification for directions and isochrones.
+    404 (no route) is directions-specific and stays at the call site."""
+    if resp.status_code == 401:
+        raise ValueError("ORS API key invalid or expired")
+    if resp.status_code == 429:
+        logger.warning("ORS rate limited (HTTP 429)")
+        raise OrsUpstreamError("rate_limited", 429, _parse_retry_after(resp))
+    if resp.status_code >= 500:
+        logger.warning("ORS upstream error (HTTP %d)", resp.status_code)
+        raise OrsUpstreamError("unavailable", resp.status_code)
+
 # One shared client for all ORS traffic (directions, isochrones, POIs).
 # Limits sit comfortably above expected concurrent traffic for a single
 # Railway instance; the bottleneck is ORS's own quota, not connection count.
@@ -125,10 +174,7 @@ async def get_isodistance(
         },
     )
 
-    if resp.status_code == 401:
-        raise ValueError("ORS API key invalid or expired")
-    if resp.status_code == 429:
-        raise ValueError("ORS rate limited")
+    _raise_for_upstream(resp)
     resp.raise_for_status()
 
     data = resp.json()
@@ -191,14 +237,9 @@ async def get_shortest_route(
         },
     )
 
-    if resp.status_code == 401:
-        raise ValueError("ORS API key invalid or expired")
-    if resp.status_code == 429:
-        raise ValueError("ORS rate limited")
+    _raise_for_upstream(resp)
     if resp.status_code == 404:
         raise ValueError("No route found")
-    if resp.status_code >= 500:
-        raise ValueError("ORS upstream error")
     resp.raise_for_status()
 
     data = resp.json()
