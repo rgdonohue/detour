@@ -68,6 +68,9 @@ def _load_places() -> list[dict]:
                 "confidence": (row.get("description_confidence_v1") or "").strip() or None,
                 "basis": (row.get("description_basis_v1") or "").strip() or None,
                 "address": (row.get("address") or "").strip() or None,
+                # Transparency metadata: curator review state of the generated
+                # descriptions. Absent column (older CSVs) -> None.
+                "review_status": (row.get("description_review_status") or "").strip() or None,
             })
     logger.info("Loaded %d places from seed CSV", len(places))
     return places
@@ -103,6 +106,7 @@ def get_all_places_geojson(category: str | None = None) -> dict:
                     "confidence": p["confidence"],
                     "basis": p["basis"],
                     "address": p.get("address"),
+                    "review_status": p.get("review_status"),
                 },
             }
             for p in pois
@@ -218,6 +222,7 @@ def select_from_static(
                 "basis": place.get("basis"),
                 "wikipedia_title": place.get("wikipedia_title"),
                 "address": place.get("address"),
+                "review_status": place.get("review_status"),
             })
 
     results.sort(key=lambda x: x["route_position"])

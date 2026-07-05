@@ -593,6 +593,9 @@ class TourStopBody(BaseModel):
     category: Literal["history", "art", "scenic", "culture", "civic"]
     description: str = Field(default="", max_length=2000)
     poi_id: str | None = None
+    # Curator review state of the generated description; persisted so the tour
+    # viewer can label draft narration. Pydantic drops undeclared fields.
+    review_status: str | None = Field(default=None, max_length=50)
 
     @field_validator("coordinates")
     @classmethod
