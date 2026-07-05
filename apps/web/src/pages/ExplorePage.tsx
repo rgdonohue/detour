@@ -2,7 +2,8 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { AppHeader } from "../components/AppHeader";
 import { AppFooter } from "../components/AppFooter";
 import { BottomSheet } from "../components/BottomSheet";
-import { ExploreMap, type SelectedPoi, featureToSelectedPoi } from "../components/explore/ExploreMap";
+import { ExploreMap } from "../components/explore/ExploreMap";
+import { type SelectedPoi, featureToSelectedPoi } from "../components/explore/selectedPoi";
 import { SearchBar } from "../components/explore/SearchBar";
 import { GeolocatePrompt } from "../components/GeolocatePrompt";
 import { CATEGORY_COLORS, type PlaceCategory } from "../data/places";
@@ -69,7 +70,6 @@ function PanelContents({
 export function ExplorePage() {
   const isMobile = useMediaQuery("(max-width: 768px)");
   const [activeCategories, setActiveCategories] = useState<Set<PlaceCategory>>(defaultActiveCategories);
-  const [selectedPoi, setSelectedPoi] = useState<SelectedPoi | null>(null);
   const [pois, setPois] = useState<PoisResponse | null>(null);
   const focusPoiRef = useRef<(feature: PoiFeature) => void>(() => {});
   const geolocateRef = useRef<() => void>(() => {});
@@ -79,42 +79,42 @@ export function ExplorePage() {
     getPois().then(setPois).catch((err) => console.warn("Failed to load POIs:", err));
   }, []);
 
-  // displayedPoi is what's actually in the DOM; selectedPoi is the intent.
-  // They diverge during the fade-out phase of a transition.
+  // displayedPoi is what's actually in the DOM; the selected POI is the
+  // intent. They diverge during the fade-out phase of a transition.
   const [displayedPoi, setDisplayedPoi] = useState<SelectedPoi | null>(null);
   const [fadingOut, setFadingOut] = useState(false);
   const displayedPoiRef = useRef<SelectedPoi | null>(null);
   const transitionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
+  const handlePoiSelect = useCallback((poi: SelectedPoi | null) => {
     if (transitionTimer.current) {
       clearTimeout(transitionTimer.current);
       transitionTimer.current = null;
     }
 
     const current = displayedPoiRef.current;
-    const isSame = current?.name === selectedPoi?.name;
+    const isSame = current?.name === poi?.name;
 
     if (current === null || isSame) {
       // First show or same POI re-clicked — no transition needed
-      displayedPoiRef.current = selectedPoi;
-      setDisplayedPoi(selectedPoi);
+      displayedPoiRef.current = poi;
+      setDisplayedPoi(poi);
     } else {
       // Fade out current, then swap in the new one
       setFadingOut(true);
       transitionTimer.current = setTimeout(() => {
-        displayedPoiRef.current = selectedPoi;
-        setDisplayedPoi(selectedPoi);
+        displayedPoiRef.current = poi;
+        setDisplayedPoi(poi);
         setFadingOut(false);
         transitionTimer.current = null;
       }, 180);
     }
-  }, [selectedPoi]);
+  }, []);
 
   const handleSearchSelect = useCallback((poi: PoiFeature) => {
-    setSelectedPoi(featureToSelectedPoi(poi));
+    handlePoiSelect(featureToSelectedPoi(poi));
     focusPoiRef.current(poi);
-  }, []);
+  }, [handlePoiSelect]);
 
   const handleToggle = useCallback((cat: PlaceCategory) => {
     setActiveCategories((prev) => {
@@ -145,7 +145,7 @@ export function ExplorePage() {
         <div className="map-wrapper">
           <ExploreMap
             activeCategories={activeCategories}
-            onPoiSelect={setSelectedPoi}
+            onPoiSelect={handlePoiSelect}
             pois={pois}
             focusPoiRef={focusPoiRef}
             geolocateRef={geolocateRef}

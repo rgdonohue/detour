@@ -69,9 +69,11 @@ interface LocateControlProps {
 export function LocateControl({ map, state, onClick }: LocateControlProps) {
   const controlRef = useRef<LocateControlImpl | null>(null);
   const onClickRef = useRef(onClick);
-  onClickRef.current = onClick;
   const stateRef = useRef(state);
-  stateRef.current = state;
+  useEffect(() => {
+    onClickRef.current = onClick;
+    stateRef.current = state;
+  });
 
   // Add/remove the control on map change
   useEffect(() => {

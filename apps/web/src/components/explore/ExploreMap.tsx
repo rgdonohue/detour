@@ -7,6 +7,7 @@ import type { PlaceCategory } from "../../data/places";
 import { useGeolocate } from "../../hooks/useGeolocate";
 import { LocateControl } from "../LocateControl";
 import { setYouAreHereLayer } from "../../lib/youAreHereLayer";
+import { featureToSelectedPoi, type SelectedPoi } from "./selectedPoi";
 
 const TONER_LITE_URL =
   "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png";
@@ -32,37 +33,6 @@ function buildPopupHtml(name: string, description: string | null): string {
     : name;
 }
 
-export interface SelectedPoi {
-  name: string;
-  category: string;
-  wikipedia_title: string | null;
-  coordinates: [number, number];
-  description_map: string | null;
-  description_card: string | null;
-  subcategory: string | null;
-  confidence: string | null;
-  basis: string | null;
-  address: string | null;
-  review_status: string | null;
-}
-
-export function featureToSelectedPoi(feature: PoiFeature): SelectedPoi {
-  const props = feature.properties;
-  return {
-    name: props.name,
-    category: props.category,
-    wikipedia_title: props.wikipedia_title,
-    coordinates: feature.geometry.coordinates,
-    description_map: props.description_map,
-    description_card: props.description_card,
-    subcategory: props.subcategory,
-    confidence: props.confidence,
-    basis: props.basis,
-    address: props.address,
-    review_status: props.review_status,
-  };
-}
-
 interface ExploreMapProps {
   activeCategories: Set<PlaceCategory>;
   onPoiSelect: (poi: SelectedPoi | null) => void;
@@ -83,10 +53,15 @@ function buildCategoryFilter(
 export function ExploreMap({ activeCategories, onPoiSelect, pois, focusPoiRef, geolocateRef, onGeolocateSuccess }: ExploreMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
+  const [mapInstance, setMapInstance] = useState<maplibregl.Map | null>(null);
   const activeCategoriesRef = useRef<Set<PlaceCategory>>(activeCategories);
-  activeCategoriesRef.current = activeCategories;
   const onPoiSelectRef = useRef(onPoiSelect);
-  onPoiSelectRef.current = onPoiSelect;
+  const onGeolocateSuccessRef = useRef(onGeolocateSuccess);
+  useEffect(() => {
+    activeCategoriesRef.current = activeCategories;
+    onPoiSelectRef.current = onPoiSelect;
+    onGeolocateSuccessRef.current = onGeolocateSuccess;
+  });
   const [mapLoaded, setMapLoaded] = useState(false);
 
   const [config, setConfig] = useState<Config | null>(null);
@@ -103,8 +78,6 @@ export function ExploreMap({ activeCategories, onPoiSelect, pois, focusPoiRef, g
 
   const [geoNotice, setGeoNotice] = useState<string | null>(null);
   const lastAppliedGeoOkRef = useRef<[number, number] | null>(null);
-  const onGeolocateSuccessRef = useRef(onGeolocateSuccess);
-  onGeolocateSuccessRef.current = onGeolocateSuccess;
 
   useEffect(() => {
     const map = mapRef.current;
@@ -114,6 +87,11 @@ export function ExploreMap({ activeCategories, onPoiSelect, pois, focusPoiRef, g
         map.easeTo({ center: geo.coords, zoom: 15, duration: 800 });
         setYouAreHereLayer(map, geo.coords);
         lastAppliedGeoOkRef.current = geo.coords;
+        // The notice mirrors one-shot geolocation results, which arrive as
+        // state from useGeolocate rather than as subscribable events. Every
+        // setGeoNotice below is transition-guarded and geoNotice is not a
+        // dependency of this effect, so no render cascade is possible.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setGeoNotice(null);
         if (onGeolocateSuccessRef.current) onGeolocateSuccessRef.current();
       }
@@ -186,6 +164,7 @@ export function ExploreMap({ activeCategories, onPoiSelect, pois, focusPoiRef, g
         map.dragRotate.disable();
         map.touchZoomRotate.disableRotation();
         mapRef.current = map;
+        setMapInstance(map);
 
         if (focusPoiRef) {
           focusPoiRef.current = (feature: PoiFeature) => {
@@ -293,7 +272,7 @@ export function ExploreMap({ activeCategories, onPoiSelect, pois, focusPoiRef, g
         hoverPopupRef.current?.remove();
       }
     });
-  }, [mapLoaded, pois]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mapLoaded, pois]);
 
   // Sync category filter when activeCategories prop changes
   useEffect(() => {
@@ -306,7 +285,7 @@ export function ExploreMap({ activeCategories, onPoiSelect, pois, focusPoiRef, g
   return (
     <>
       <div ref={containerRef} className="map-container" />
-      <LocateControl map={mapRef.current} state={geo.state} onClick={geo.request} />
+      <LocateControl map={mapInstance} state={geo.state} onClick={geo.request} />
       {geoNotice && <div className="geo-notice">{geoNotice}</div>}
     </>
   );

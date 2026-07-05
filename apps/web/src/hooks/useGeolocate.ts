@@ -21,7 +21,9 @@ export function useGeolocate(config: GeolocateConfig): UseGeolocateResult {
     return () => { mountedRef.current = false; };
   }, []);
   const configRef = useRef(config);
-  configRef.current = config;
+  useEffect(() => {
+    configRef.current = config;
+  });
 
   const request = useCallback(() => {
     if (inFlightRef.current) return;

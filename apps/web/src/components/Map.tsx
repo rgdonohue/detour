@@ -931,7 +931,7 @@ export function Map({ resetRef, modeChangeRef, geolocateRef, mode, onModeChange 
     } else if (geo.state === "unavailable") {
       setGeoNotice("Couldn't get your location.");
     }
-  }, [geo.state, geo.coords, mapReady]);
+  }, [geo.state, geo.coords, mapReady, placeOriginMarker]);
 
   useEffect(() => {
     if (!geoNotice) return;
