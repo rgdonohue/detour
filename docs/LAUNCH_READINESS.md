@@ -10,7 +10,7 @@ The three minimum-to-post tasks below have **shipped** and are verified in code:
 2. Route + suggest-stop caching — `_cached_shortest_route` persists through `apps/api/cache.py` (TTL default `CACHE_TTL_HOURS: int = 168` = 7 days, `apps/api/config.py:28`; `CACHE_DIR` env-configurable, `apps/api/cache.py:22-33`).
 3. Rate limits — `apps/api/rate_limit.py`, wired per-IP for area/route/suggest/tours and globally below ORS quotas (`apps/api/main.py:81-96`); 429s carry `retry_after_seconds`, which the frontend parses (`apps/web/src/lib/api.ts:36`). Covered by `tests/test_rate_limit.py`, `tests/test_main_rate_limit.py`, `tests/test_main_cache.py`, `tests/test_inflight.py`.
 
-The **deferred** section below is still open (verified: no ORS retry/backoff in `ors_client.py`, no `handleSelectStop` debounce, no ORS-payload invariant tests), as is the move off the shared free-tier key. Saved-tour pruning automation has since shipped (see its section below).
+The **deferred** section below is still open (verified: no ORS retry/backoff in `ors_client.py`, no `handleSelectStop` debounce), as is the move off the shared free-tier key. ORS-payload invariant tests and saved-tour pruning automation have since shipped (see their sections below).
 
 ## The framing (as written pre-hardening)
 
@@ -77,11 +77,11 @@ A 300-500 ms debounce on `handleSelectStop` would collapse rapid-fire stop addit
 - For 429, respect `Retry-After`. If ≤ 2 s, retry once; otherwise fail fast with a typed 429.
 - Frontend soft-fail vs hard-fail copy: area-ring 429 = "Distance rings are busy; route checks still work" banner; route 429 = "Routing is busy, try again in Ns" hard error; suggest-stop failure = keep route, show "Stops unavailable".
 
-### Invariant regression tests
+### Invariant regression tests (SHIPPED)
 
-`apps/api/tests/` covers `conversion.py` and a local within-limit helper but never checks the actual ORS request payloads. A future refactor could silently drop `preference="shortest"` or `range_type="distance"`.
+`apps/api/tests/` covers `conversion.py` and a local within-limit helper. The ORS request-payload regression gap has since been closed by `apps/api/tests/test_ors_invariants.py`, which guards against silently dropping `preference="shortest"` or `range_type="distance"`.
 
-Add tests that monkeypatch the ORS HTTP client and assert:
+The shipped tests monkeypatch the ORS HTTP client and assert:
 
 - Directions JSON contains `preference: "shortest"`.
 - Isochrones JSON contains `range_type: "distance"`.
