@@ -2,17 +2,27 @@
 
 Engineering hardening before posting Detour publicly. Product direction lives in `NEXT_STEPS.md` and `UX_DIRECTION.md`; this doc tracks the load/scaling/abuse work that has to land first.
 
-## The framing
+## Status — 2026-07-04
 
-Detour currently proxies a single shared OpenRouteService free-tier key. Public-tier ORS quotas are roughly 2,000 directions/day, 500 isochrones/day, 500 POIs/day, shared across **all** users behind that key. There is no FastAPI rate limiting, route responses are not cached, and area-ring cache keys use raw float coordinates so two users clicking near the same intersection rarely share an entry.
+The three minimum-to-post tasks below have **shipped** and are verified in code:
 
-A Hacker News spike or a tour-guide newsletter blast would exhaust the daily isochrone quota in minutes, and the frontend would silently degrade — markers appear but distance rings stop showing — without a useful error message.
+1. Coordinate quantization, pooled httpx, in-flight dedup — `apps/api/coords.py` (`quantize`, 4 decimals), module-level `httpx.AsyncClient` with the exact limits/timeouts specified below (`apps/api/ors_client.py:26-40`), and `_route_inflight` dedup on `/api/route` / `/api/suggest-stop` via `_cached_shortest_route` (`apps/api/main.py`).
+2. Route + suggest-stop caching — `_cached_shortest_route` persists through `apps/api/cache.py` (TTL default `CACHE_TTL_HOURS: int = 168` = 7 days, `apps/api/config.py:28`; `CACHE_DIR` env-configurable, `apps/api/cache.py:22-33`).
+3. Rate limits — `apps/api/rate_limit.py`, wired per-IP for area/route/suggest/tours and globally below ORS quotas (`apps/api/main.py:81-96`); 429s carry `retry_after_seconds`, which the frontend parses (`apps/web/src/lib/api.ts:36`). Covered by `tests/test_rate_limit.py`, `tests/test_main_rate_limit.py`, `tests/test_main_cache.py`, `tests/test_inflight.py`.
+
+The **deferred** section below is still open (verified: no ORS retry/backoff in `ors_client.py`, no `handleSelectStop` debounce, no ORS-payload invariant tests, no saved-tour pruning automation), as is the move off the shared free-tier key.
+
+## The framing (as written pre-hardening)
+
+Detour proxies a single shared OpenRouteService free-tier key. Public-tier ORS quotas are roughly 2,000 directions/day, 500 isochrones/day, 500 POIs/day, shared across **all** users behind that key. Before the sequenced work shipped, there was no FastAPI rate limiting, route responses were not cached, and area-ring cache keys used raw float coordinates so two users clicking near the same intersection rarely shared an entry.
+
+A Hacker News spike or a tour-guide newsletter blast would have exhausted the daily isochrone quota in minutes, and the frontend would silently degrade — markers appear but distance rings stop showing — without a useful error message.
 
 See the original code review for full citations: [internal/codex-review-2026-05-13.md](#) (paste-only, not committed).
 
-## Sequenced work — minimum to post safely
+## Sequenced work — minimum to post safely (SHIPPED)
 
-These three tasks are tracked in the active task list and must ship before posting publicly.
+These three tasks were the minimum to post publicly; all three have landed (see Status above). The text below is kept as the spec they were built against.
 
 ### 1. Quantize coords, pool httpx, extend in-flight dedup to `/api/route`
 

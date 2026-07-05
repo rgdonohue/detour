@@ -63,7 +63,9 @@ cache/   persisted area-ring GeoJSON when generated locally
 - **POI QC gate:** before promoting a new curator POI CSV into `apps/api/data/`,
   run `python scripts/qc_pois.py --csv <file> --manifest <manifest.json>`. Exit 0
   means safe to promote; exit 1 lists the blocking issues (residual duplicate
-  pins, schema drift, bad coordinates). See
+  pins, schema drift, bad coordinates, manifest accounting drift). Accepts
+  curator manifest `schema_version` absent/1/2 and fails closed on unknown
+  versions or a missing `summary.rows_after`. See
   `docs/superpowers/specs/2026-06-01-poi-qc-gate-design.md`.
 - **Routing:** ORS directions endpoint `/v2/directions/{profile}/geojson`, using `preference="shortest"` for `driving-car` and `foot-walking`.
 - **Isochrones:** ORS endpoint `/v2/isochrones/{profile}`, requesting multiple distance ranges in one call.

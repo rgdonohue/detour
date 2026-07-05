@@ -132,6 +132,16 @@ clean v2, we verify before anything reaches that directory:
 3. Cross-check the curator's merge manifest against our own detection — flag any
    cluster they collapsed that we think was legitimate co-location, and vice
    versa.
+
+   Manifest versioning: the gate accepts manifests with `schema_version`
+   absent (legacy), `1`, or `2`. Curator manifest v2 adds a
+   `contract`/`inputs` provenance envelope on top of the same
+   cluster/disposition structure; extra top-level keys are tolerated. Two
+   things fail closed: an unknown `schema_version`, and a manifest that
+   omits `summary.rows_after` — the row-count cross-check is mandatory
+   whenever a manifest is provided, never silently skipped. The gate stays
+   an independent verifier: it reads the manifest as plain JSON and imports
+   no curator code or schema package.
 4. The gate emits a human-reviewable triage report; ambiguous clusters require
    sign-off before promotion.
 5. Optional safety net: a light spatial+name dedup in
