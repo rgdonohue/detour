@@ -356,9 +356,115 @@ def test_run_qc_malformed_manifest_clusters_not_list(tmp_path):
     assert any("manifest" in f for f in result.failures), result.failures
 
 
+def _v2_manifest(rows_after=1, **over):
+    """Curator manifest v2: same clusters/summary structure plus a contract/inputs
+    provenance envelope (feat/detour-integration-contract)."""
+    manifest = {
+        "schema_version": 2,
+        "contract": "detour-export",
+        "inputs": {
+            "v1_csv": {"path": "exports/v1.csv", "sha256": "0" * 64, "rows": 516},
+            "dispositions": {"path": "exports/dispositions.json", "sha256": "0" * 64},
+        },
+        "summary": {
+            "rows_before": 2, "rows_after": rows_after,
+            "clusters_collapsed": 0, "clusters_left_colocated": 0,
+            "review_candidates": 0,
+        },
+        "clusters": [],
+        "excluded_rows": [],
+        "data_quality_flags": [],
+    }
+    manifest.update(over)
+    return manifest
+
+
+def _write_one_row_csv(tmp_path):
+    csv_path = tmp_path / "v.csv"
+    _write_csv(csv_path, [
+        _csv_row("p1", "osm:relation/13422888", "Tudesque House", -105.93883405, 35.68407725),
+    ])
+    return csv_path
+
+
+def _write_manifest(tmp_path, manifest):
+    manifest_path = tmp_path / "m.json"
+    manifest_path.write_text(_json.dumps(manifest), encoding="utf-8")
+    return manifest_path
+
+
+def test_run_qc_accepts_schema_version_2_envelope(tmp_path):
+    # The v2 contract/inputs envelope must not trip the gate.
+    csv_path = _write_one_row_csv(tmp_path)
+    manifest_path = _write_manifest(tmp_path, _v2_manifest(rows_after=1))
+    result = poi_qc.run_qc(csv_path, manifest_path)
+    assert result.passed is True, result.failures
+
+
+def test_run_qc_accepts_schema_version_1(tmp_path):
+    csv_path = _write_one_row_csv(tmp_path)
+    manifest_path = _write_manifest(
+        tmp_path, {"schema_version": 1, "summary": {"rows_after": 1}, "clusters": []},
+    )
+    result = poi_qc.run_qc(csv_path, manifest_path)
+    assert result.passed is True, result.failures
+
+
+def test_run_qc_accepts_absent_schema_version(tmp_path):
+    # Legacy manifests predate schema_version; they must keep working.
+    csv_path = _write_one_row_csv(tmp_path)
+    manifest_path = _write_manifest(
+        tmp_path, {"summary": {"rows_after": 1}, "clusters": []},
+    )
+    result = poi_qc.run_qc(csv_path, manifest_path)
+    assert result.passed is True, result.failures
+
+
+def test_run_qc_fails_unknown_schema_version(tmp_path):
+    # Fail closed on manifest versions this gate was not written against.
+    csv_path = _write_one_row_csv(tmp_path)
+    manifest_path = _write_manifest(tmp_path, _v2_manifest(schema_version=3))
+    result = poi_qc.run_qc(csv_path, manifest_path)
+    assert result.passed is False
+    assert any("schema_version" in f for f in result.failures), result.failures
+
+
+def test_run_qc_fails_manifest_missing_rows_after(tmp_path):
+    # A present manifest with no summary.rows_after must fail, not silently
+    # skip the row-count cross-check.
+    manifest = _v2_manifest()
+    del manifest["summary"]
+    csv_path = _write_one_row_csv(tmp_path)
+    manifest_path = _write_manifest(tmp_path, manifest)
+    result = poi_qc.run_qc(csv_path, manifest_path)
+    assert result.passed is False
+    assert any("rows_after" in f for f in result.failures), result.failures
+
+
+def test_run_qc_v2_rowcount_mismatch_still_fails(tmp_path):
+    # The envelope must not weaken the existing accounting check.
+    csv_path = _write_one_row_csv(tmp_path)
+    manifest_path = _write_manifest(tmp_path, _v2_manifest(rows_after=99))
+    result = poi_qc.run_qc(csv_path, manifest_path)
+    assert result.passed is False
+    assert any("rows_after" in f for f in result.failures), result.failures
+
+
 # test file: repo/apps/api/tests/test_poi_qc.py -> parents[3] is the repo root
 _REPO_ROOT = _Path(__file__).resolve().parents[3]
 _CLI = _REPO_ROOT / "scripts" / "qc_pois.py"
+
+_SHIPPED_CSV = _REPO_ROOT / "apps" / "api" / "data" / "query_capable_pois_merged_v2.csv"
+_SHIPPED_MANIFEST = (
+    _REPO_ROOT / "apps" / "api" / "data" / "query_capable_pois_merged_v2_merge_manifest.json"
+)
+
+
+def test_shipped_csv_and_manifest_still_pass():
+    # Regression anchor: the promoted dataset must keep passing its own gate.
+    result = poi_qc.run_qc(_SHIPPED_CSV, _SHIPPED_MANIFEST)
+    assert result.passed is True, result.failures
+    assert result.info["manifest_present"] is True
 
 
 def test_cli_exits_zero_on_clean_csv(tmp_path):

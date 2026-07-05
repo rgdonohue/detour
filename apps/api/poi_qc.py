@@ -208,10 +208,27 @@ def count_colocation_clusters(
     return count
 
 
+# Manifest schema versions this gate was written against. Absent means a
+# legacy (pre-versioning) manifest. Anything else fails closed: a new version
+# may have moved the safety/accounting fields this gate relies on.
+SUPPORTED_MANIFEST_SCHEMA_VERSIONS = frozenset({1, 2})
+
+
 def load_manifest(path: Path) -> dict:
     """Read the curator merge manifest JSON."""
     with path.open(encoding="utf-8") as f:
         return json.load(f)
+
+
+def check_manifest_version(manifest: dict) -> list[str]:
+    """Accept schema_version absent (legacy), 1, or 2; fail closed otherwise."""
+    version = manifest.get("schema_version")
+    if version is None or version in SUPPORTED_MANIFEST_SCHEMA_VERSIONS:
+        return []
+    return [
+        f"manifest: unsupported schema_version {version!r} "
+        f"(this gate accepts: absent, 1, 2)"
+    ]
 
 
 def _clusters(manifest: dict) -> list:
@@ -261,8 +278,13 @@ def cross_check_manifest(rows: list[PoiRow], manifest: dict) -> list[str]:
             if dk and dk in present_keys:
                 failures.append(f"manifest: dropped key {dk!r} still present in CSV")
 
-    rows_after = manifest.get("summary", {}).get("rows_after")
-    if rows_after is not None and rows_after != len(rows):
+    summary = manifest.get("summary")
+    rows_after = summary.get("rows_after") if isinstance(summary, dict) else None
+    if rows_after is None:
+        # A manifest without its accounting block would silently disable the
+        # row-count cross-check; that is a gate failure, not a skip.
+        failures.append("manifest: summary.rows_after missing — row-count cross-check cannot run")
+    elif rows_after != len(rows):
         failures.append(
             f"manifest: summary.rows_after={rows_after} but CSV has {len(rows)} rows"
         )
@@ -314,6 +336,7 @@ def run_qc(csv_path: Path, manifest_path: Path | None = None) -> QcResult:
                 raise TypeError(f"clusters is {type(clusters).__name__}, expected list")
             if any(not isinstance(c, dict) for c in clusters):
                 raise TypeError("clusters contains a non-object entry")
+            failures.extend(check_manifest_version(manifest))
             allowlist = manifest_allowlist(manifest)
             failures.extend(cross_check_manifest(rows, manifest))
         except (json.JSONDecodeError, ValueError, TypeError, AttributeError) as e:
