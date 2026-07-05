@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     # Empty = use repo-relative ./cache. In production, point at the Railway
     # Volume mount path so cache survives restarts.
     CACHE_DIR: str = ""
+    # Soft cap on user-saved tour files. After each successful save, the
+    # oldest saved tours (by file mtime) beyond this count are deleted.
+    # 0 disables pruning. Curated gallery tours are never affected.
+    SAVED_TOURS_MAX_FILES: int = 500
     CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
     USE_ORS_POIS: bool = False
 

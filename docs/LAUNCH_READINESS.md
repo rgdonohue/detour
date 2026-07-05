@@ -10,7 +10,7 @@ The three minimum-to-post tasks below have **shipped** and are verified in code:
 2. Route + suggest-stop caching — `_cached_shortest_route` persists through `apps/api/cache.py` (TTL default `CACHE_TTL_HOURS: int = 168` = 7 days, `apps/api/config.py:28`; `CACHE_DIR` env-configurable, `apps/api/cache.py:22-33`).
 3. Rate limits — `apps/api/rate_limit.py`, wired per-IP for area/route/suggest/tours and globally below ORS quotas (`apps/api/main.py:81-96`); 429s carry `retry_after_seconds`, which the frontend parses (`apps/web/src/lib/api.ts:36`). Covered by `tests/test_rate_limit.py`, `tests/test_main_rate_limit.py`, `tests/test_main_cache.py`, `tests/test_inflight.py`.
 
-The **deferred** section below is still open (verified: no ORS retry/backoff in `ors_client.py`, no `handleSelectStop` debounce, no ORS-payload invariant tests, no saved-tour pruning automation), as is the move off the shared free-tier key.
+The **deferred** section below is still open (verified: no ORS retry/backoff in `ors_client.py`, no `handleSelectStop` debounce, no ORS-payload invariant tests), as is the move off the shared free-tier key. Saved-tour pruning automation has since shipped (see its section below).
 
 ## The framing (as written pre-hardening)
 
@@ -88,9 +88,9 @@ Add tests that monkeypatch the ORS HTTP client and assert:
 - `get_shortest_route` computes `within_limit` from returned route distance, not polygon state.
 - `/api/config` response does not contain `ORS_API_KEY` or any `*_KEY` field.
 
-### Saved-tour pruning automation
+### Saved-tour pruning automation (SHIPPED)
 
-`apps/api/saved_tours.py` writes one JSON file per POST to the Railway Volume; `tour_admin.py` exists as a manual CLI. Volume can fill. Add an automated prune policy — either a periodic job invoked by `tour_admin.py` logic, or a soft cap (LRU eviction) in `save_tour`. Rate limiting from task 3 slows the bleed but does not stop it.
+`apps/api/saved_tours.py` writes one JSON file per POST to the Railway Volume; `tour_admin.py` exists as a manual CLI. Volume can fill. The soft-cap option shipped: after each successful save, `prune_saved_tours` deletes the oldest slug-shaped saved-tour files (by mtime) beyond `SAVED_TOURS_MAX_FILES` (default 500, `0` disables; `apps/api/config.py`). The just-saved tour is never deleted, curated gallery tours in `data/tours/` are out of scope by construction, and non-slug-shaped files are left alone. Age-based cleanup remains a manual operator action via `tour_admin.py prune --older-than`. Covered by `tests/test_saved_tours.py`.
 
 ### `Map.tsx` extraction
 

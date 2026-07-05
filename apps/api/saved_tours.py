@@ -14,6 +14,8 @@ import secrets
 from pathlib import Path
 from typing import Any
 
+from config import settings
+
 logger = logging.getLogger(__name__)
 
 # Path is env-driven so production can point it at a mounted volume
@@ -54,7 +56,50 @@ def save_tour(payload: dict[str, Any]) -> str:
     payload.setdefault("stop_count", len(payload.get("stops", [])))
     path.write_text(json.dumps(payload), encoding="utf-8")
     logger.info("Saved tour: %s (%d stops)", slug, payload["stop_count"])
+    try:
+        prune_saved_tours(keep=path)
+    except Exception:
+        # The tour is already on disk; a prune failure must not turn a
+        # successful save into a 500.
+        logger.exception("Saved-tour pruning failed (save succeeded)")
     return slug
+
+
+def prune_saved_tours(keep: Path | None = None) -> int:
+    """Enforce the SAVED_TOURS_MAX_FILES soft cap; return files deleted.
+
+    Only slug-shaped `*.json` files directly in the saved-tours dir are
+    eligible — curated gallery tours live elsewhere (`data/tours/`), and
+    anything that doesn't look like a saved tour is left alone. Content is
+    never parsed: ordering is oldest-mtime-first (filename tiebreak), so
+    malformed files age out like any other. `keep` is never deleted.
+
+    Count-based automation only; age-based cleanup stays a manual operator
+    action via `tour_admin.py prune --older-than`.
+    """
+    cap = settings.SAVED_TOURS_MAX_FILES
+    if cap <= 0:
+        return 0
+    candidates = [
+        p for p in _SAVED_DIR.glob("*.json") if p.is_file() and _SLUG_RE.match(p.stem)
+    ]
+    excess = len(candidates) - cap
+    if excess <= 0:
+        return 0
+    candidates.sort(key=lambda p: (p.stat().st_mtime, p.name))
+    deleted = 0
+    for path in candidates:
+        if deleted >= excess:
+            break
+        if keep is not None and path == keep:
+            continue
+        try:
+            path.unlink(missing_ok=True)
+            deleted += 1
+            logger.info("Pruned saved tour over cap: %s", path.stem)
+        except OSError:
+            logger.warning("Could not prune saved tour: %s", path.name, exc_info=True)
+    return deleted
 
 
 def load_saved_tour(slug: str) -> dict | None:

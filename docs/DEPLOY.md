@@ -32,6 +32,7 @@ Service-level config (optional; Railway will use these if present):
 - `DEFAULT_RANGE_MILES`
 - `CACHE_TTL_HOURS`
 - `SAVED_TOURS_DIR` — Filesystem directory for user-saved tours (POST `/api/tours`). Defaults to `./data/saved_tours` inside the container. **Required for durability on Railway** — without a mounted Volume backing this path, every redeploy wipes all user-saved tours.
+- `SAVED_TOURS_MAX_FILES` — Soft cap on user-saved tour files (default `500`, `0` disables). After each successful save, the oldest saved tours by file mtime beyond the cap are deleted automatically; the just-saved tour and curated gallery tours are never touched. Age-based cleanup remains manual via `tour_admin.py prune`.
 
 ### Saved-tour durability (Railway Volume)
 
