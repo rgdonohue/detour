@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { StopSuggestion, TravelMode } from "../lib/api";
 import type { PlaceCategory } from "../data/places";
 import { CATEGORY_COLORS } from "../data/places";
+import { descriptionReviewNote } from "../lib/descriptionReviewNote";
 
 const CATEGORY_LABELS: Record<PlaceCategory, string> = {
   history: "Historic",
@@ -407,9 +408,14 @@ export function VerdictPanel({
                             stop.confidence !== "low"
                               ? (stop.description_card ?? stop.description_map ?? stop.description)
                               : (stop.description_map ?? stop.description_card ?? stop.description);
-                          return desc ? (
-                            <span className="stop-list__item-desc">{desc}</span>
-                          ) : null;
+                          if (!desc) return null;
+                          const note = descriptionReviewNote(stop.review_status, true);
+                          return (
+                            <>
+                              <span className="stop-list__item-desc">{desc}</span>
+                              {note && <span className="description-review-note">{note}</span>}
+                            </>
+                          );
                         })()}
                       </button>
                     </li>

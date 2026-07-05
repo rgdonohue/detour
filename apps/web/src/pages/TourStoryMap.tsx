@@ -3,6 +3,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef, useState, useReducer } from "react";
 import { useParams, useLocation, Link } from "react-router-dom";
 import { getTour } from "../lib/tourApi";
+import { descriptionReviewNote } from "../lib/descriptionReviewNote";
 import { ShareModal } from "../components/ShareModal";
 import type { TourDefinition, PlaceCategory } from "../types/tour";
 
@@ -666,6 +667,13 @@ export function TourStoryMap({ tour: tourProp }: { tour?: TourDefinition }) {
                 <p className="story-map__stop-description">
                   {stop.description}
                 </p>
+                {/* Only user-built tours carry review_status; hand-authored
+                    gallery tours (field absent) are never labeled as drafts. */}
+                {stop.review_status != null &&
+                  (() => {
+                    const note = descriptionReviewNote(stop.review_status, Boolean(stop.description));
+                    return note ? <div className="description-review-note">{note}</div> : null;
+                  })()}
               </div>
             </section>
           );

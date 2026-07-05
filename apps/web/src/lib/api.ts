@@ -98,6 +98,7 @@ export interface StopSuggestion {
   basis?: string | null;
   wikipedia_title?: string | null;
   address?: string | null;
+  review_status?: string | null;
 }
 
 export interface SuggestStopResponse {
@@ -119,6 +120,7 @@ export interface PoiFeature {
     confidence: string | null;
     basis: string | null;
     address: string | null;
+    review_status: string | null;
   };
 }
 

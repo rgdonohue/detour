@@ -43,6 +43,7 @@ export interface SelectedPoi {
   confidence: string | null;
   basis: string | null;
   address: string | null;
+  review_status: string | null;
 }
 
 export function featureToSelectedPoi(feature: PoiFeature): SelectedPoi {
@@ -58,6 +59,7 @@ export function featureToSelectedPoi(feature: PoiFeature): SelectedPoi {
     confidence: props.confidence,
     basis: props.basis,
     address: props.address,
+    review_status: props.review_status,
   };
 }
 

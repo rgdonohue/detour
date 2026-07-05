@@ -7,6 +7,9 @@ export interface TourStop {
   category: PlaceCategory;
   description: string;
   poi_id?: string;
+  // Curator review state of a generated description. Absent on hand-authored
+  // gallery tours, which must never be labeled as drafts.
+  review_status?: string | null;
 }
 
 export interface TourRouteFeature {

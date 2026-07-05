@@ -6,6 +6,7 @@ import { ExploreMap, type SelectedPoi, featureToSelectedPoi } from "../component
 import { SearchBar } from "../components/explore/SearchBar";
 import { GeolocatePrompt } from "../components/GeolocatePrompt";
 import { CATEGORY_COLORS, type PlaceCategory } from "../data/places";
+import { descriptionReviewNote } from "../lib/descriptionReviewNote";
 import { getPois, type PoiFeature, type PoisResponse } from "../lib/api";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import type { SnapName } from "../lib/bottomSheet";
@@ -300,6 +301,10 @@ function PoiDetail({ poi, fadingOut }: { poi: SelectedPoi; fadingOut: boolean })
       {descriptionText && (
         <p className="explore-poi-detail__description">{descriptionText}</p>
       )}
+      {(() => {
+        const note = descriptionReviewNote(poi.review_status, Boolean(descriptionText));
+        return note ? <div className="description-review-note">{note}</div> : null;
+      })()}
       {basisTags.length > 0 && (
         <div className="explore-poi-detail__basis">
           {basisTags.map((tag) => (

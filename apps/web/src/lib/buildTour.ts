@@ -84,6 +84,7 @@ export function buildTourFromState({
       category: cat,
       description,
       poi_id: stop.poi_id ?? undefined,
+      review_status: stop.review_status ?? undefined,
     };
   });
 
