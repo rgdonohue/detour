@@ -23,18 +23,56 @@ export class ApiError extends Error {
   }
 }
 
+export interface ParsedApiError {
+  message: string;
+  retryAfterSeconds?: number;
+}
+
+/**
+ * Map an error response (status + parsed JSON body) to user-facing copy.
+ *
+ * The backend tags upstream ORS failures with `error_type` so they can be
+ * told apart from Detour's own rate limits: `ors_rate_limited` gets busy
+ * copy with retry timing when known, `ors_upstream` gets service-outage
+ * copy that doesn't blame the user's route. Everything else keeps the
+ * previous behavior — a string `detail` passes through, anything else
+ * falls back. Exported for tests.
+ *
+ * The status is carried on the thrown ApiError, not used for copy — the
+ * backend's error_type is the discriminator.
+ */
+export function parseApiError(
+  _status: number,
+  body: unknown,
+  fallback: string,
+): ParsedApiError {
+  const obj = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
+  const detail = typeof obj.detail === "string" ? obj.detail : undefined;
+  const retryAfterSeconds =
+    typeof obj.retry_after_seconds === "number" ? obj.retry_after_seconds : undefined;
+  const errorType = typeof obj.error_type === "string" ? obj.error_type : undefined;
+
+  if (errorType === "ors_rate_limited") {
+    return {
+      message:
+        retryAfterSeconds !== undefined
+          ? `The routing service is busy. Try again in ${retryAfterSeconds}s.`
+          : "The routing service is busy. Try again shortly.",
+      retryAfterSeconds,
+    };
+  }
+  if (errorType === "ors_upstream") {
+    return {
+      message: "The routing service is temporarily unavailable. Try again in a moment.",
+      retryAfterSeconds,
+    };
+  }
+  return { message: detail ?? fallback, retryAfterSeconds };
+}
+
 async function _throwFromResponse(res: Response, fallback: string): Promise<never> {
-  const body = await res.json().catch(() => ({} as Record<string, unknown>));
-  const detail = body.detail;
-  // Backend may return `detail` as a string (most errors) or, in older paths,
-  // as a structured object. Coerce to a clean human string either way.
-  const message = typeof detail === "string"
-    ? detail
-    : (detail && typeof detail === "object")
-      ? fallback
-      : fallback;
-  const retryAfterRaw = (body as { retry_after_seconds?: unknown }).retry_after_seconds;
-  const retryAfterSeconds = typeof retryAfterRaw === "number" ? retryAfterRaw : undefined;
+  const body: unknown = await res.json().catch(() => null);
+  const { message, retryAfterSeconds } = parseApiError(res.status, body, fallback);
   throw new ApiError(message, res.status, retryAfterSeconds);
 }
 
