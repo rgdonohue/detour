@@ -31,3 +31,11 @@ For deployed environments, set:
 ```bash
 VITE_API_BASE=https://<your-api-domain>/api
 ```
+
+The CARTO raster basemap needs a key (free at https://carto.com/basemaps/apikey/). Set it on the **web** service, or in `apps/web/.env.local` for local dev:
+
+```bash
+VITE_CARTO_BASEMAP_KEY=<your-carto-key>
+```
+
+`VITE_*` values are inlined into the JS bundle at build time, so this key is public by design. Changing it requires a rebuild. Never put server secrets such as `ORS_API_KEY` in a `VITE_*` variable.

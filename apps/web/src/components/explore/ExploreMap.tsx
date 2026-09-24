@@ -8,9 +8,7 @@ import { useGeolocate } from "../../hooks/useGeolocate";
 import { LocateControl } from "../LocateControl";
 import { setYouAreHereLayer } from "../../lib/youAreHereLayer";
 import { featureToSelectedPoi, type SelectedPoi } from "./selectedPoi";
-
-const TONER_LITE_URL =
-  "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png";
+import { BASEMAP_TILES_URL } from "../../lib/basemap";
 
 const POI_SOURCE_ID = "pois";
 const POI_CIRCLE_LAYER_ID = "poi-circles";
@@ -149,7 +147,7 @@ export function ExploreMap({ activeCategories, onPoiSelect, pois, focusPoiRef, g
             sources: {
               "toner-lite": {
                 type: "raster",
-                tiles: [TONER_LITE_URL],
+                tiles: [BASEMAP_TILES_URL],
                 tileSize: 256,
                 attribution:
                   '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',

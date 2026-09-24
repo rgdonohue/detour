@@ -38,14 +38,12 @@ import {
   parseShareableRouteState,
   replaceShareableRouteState,
 } from "../lib/urlState";
+import { BASEMAP_TILES_URL } from "../lib/basemap";
 
 const CLICK_DEBOUNCE_MS = 300;
 // Rapid stop toggles collapse into one /api/route call; selection state
 // still updates immediately (docs/LAUNCH_READINESS.md, stop-selection debounce)
 const STOP_SELECT_DEBOUNCE_MS = 400;
-const TONER_LITE_URL =
-  "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png";
-
 const ROUTE_COLOR = "#C45B28";       // terracotta — used for all routes
 const ROUTE_OUTSIDE_COLOR = "#B8432F"; // outside-limit override
 
@@ -721,7 +719,7 @@ export function Map({ resetRef, modeChangeRef, geolocateRef, mode, onModeChange 
         sources: {
           "toner-lite": {
             type: "raster",
-            tiles: [TONER_LITE_URL],
+            tiles: [BASEMAP_TILES_URL],
             tileSize: 256,
             attribution:
               '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &middot; Routing by <a href="https://openrouteservice.org/">OpenRouteService</a>',
